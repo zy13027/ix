@@ -8,11 +8,13 @@
  */
 import fs from 'fs-extra';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { resolveTestIds } from './utils';
 import { excludedTestIds } from '../tests/exclude-test-ids';
 import test from 'node:test';
 
-const __dirname = path.dirname(new URL(import.meta.url).pathname);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const __generatedTestsPath = path.join(__dirname, '..', 'tests', 'generated');
 
 async function main() {

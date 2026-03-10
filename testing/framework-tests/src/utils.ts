@@ -8,18 +8,28 @@
  */
 import { glob } from 'glob';
 import path from 'node:path';
-const __dirname = path.dirname(new URL(import.meta.url).pathname);
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const htmlPreviewPath = path.join(
   __dirname,
   '..',
-  'node_modules',
+  '..',
+  '..',
+  'packages',
   'html-test-app',
   'src',
   'preview-examples'
 );
 
 export async function resolveTestIds() {
-  const files = await glob(path.join(htmlPreviewPath, '*.html'));
-  return files.map((file) => path.basename(file, '.html'));
+  const files = await glob('*.html', {
+    cwd: htmlPreviewPath,
+    absolute: true,
+    windowsPathsNoEscape: true,
+  });
+
+  return files.map((file) => path.basename(file, '.html')).sort();
 }

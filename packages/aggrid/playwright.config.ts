@@ -48,5 +48,6 @@ export default defineConfig({
   webServer: {
     command: 'pnpm vite',
     port: 5173,
+    reuseExistingServer: !process.env.CI,
   },
 });

@@ -16,27 +16,27 @@ import { devices } from '@playwright/test';
  */
 // require('dotenv').config();
 
-let THEMES = [
+const THEMES = [
   'theme-classic-light',
   'theme-classic-dark',
   'theme-brand-light',
   'theme-brand-dark',
 ];
 
+const isCI =
+  !!(globalThis as { process?: { env?: Record<string, string | undefined> } })
+    .process?.env?.CI;
+
 function buildProjectsWithThemes() {
-  return THEMES.flatMap((theme) => {
-    return [
-      {
-        name: `chromium - ${theme}`,
-        use: {
-          ...devices['Desktop Chrome'],
-        },
-        metadata: {
-          theme,
-        },
-      },
-    ];
-  });
+  return THEMES.map((theme) => ({
+    name: `chromium - ${theme}`,
+    use: {
+      ...devices['Desktop Chrome'],
+    },
+    metadata: {
+      theme,
+    },
+  }));
 }
 
 /**
@@ -57,9 +57,9 @@ const config: PlaywrightTestConfig = {
   /* Run tests in files in parallel */
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
-  forbidOnly: !!process.env.CI,
+  forbidOnly: isCI,
   /* Retry on CI only */
-  retries: process.env.CI ? 2 : 0,
+  retries: isCI ? 2 : 0,
   /* Opt out of parallel tests on CI. */
   workers: 10,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
@@ -79,6 +79,7 @@ const config: PlaywrightTestConfig = {
   webServer: {
     command: 'pnpm host-root',
     port: 8080,
+    reuseExistingServer: !isCI,
   },
 };
 

@@ -6,21 +6,10 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  */
-import { testIds } from 'framework-tests/tests/test-ids';
 import { Routes } from '@angular/router';
 
 type AngularComponent = any;
-
-const exampleNames = [...testIds, 'validation'] as const;
-type IxPreviewRoutes = {
-  [K in (typeof exampleNames)[number] as `preview/${K}`]: AngularComponent;
-} & {
-  '': AngularComponent;
-  'preview/modal-by-instance': AngularComponent;
-  'preview/modal-by-template': AngularComponent;
-  'preview/select-ng-model': AngularComponent;
-  'preview/toggle-ng-model': AngularComponent;
-};
+type IxPreviewRoutes = Record<string, AngularComponent>;
 
 export const routePaths: IxPreviewRoutes = {
   '': () => import('../playground/playground').then((m) => m.default),
