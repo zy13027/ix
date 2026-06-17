@@ -111,14 +111,6 @@ export class ApplicationHeader {
   @Prop({ mutable: true }) showMenu?: boolean = false;
 
   /**
-   * ARIA label for the menu expand icon button
-   *
-   * @since 3.2.0
-   * @deprecated This prop is no longer used as the menu expand button is hidden from screen readers. Will be removed in 5.0.0
-   */
-  @Prop() ariaLabelMenuExpandIconButton?: string;
-
-  /**
    * ARIA label for the app switch icon button
    *
    * @since 3.2.0
@@ -365,6 +357,7 @@ export class ApplicationHeader {
           'hide-bottom-border': this.hideBottomBorder,
         }}
         slot="application-header"
+        role="banner"
       >
         <div class="left-side">
           {this.appIcon && this.breakpoint !== 'sm' && (

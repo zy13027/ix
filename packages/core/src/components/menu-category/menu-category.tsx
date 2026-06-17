@@ -17,22 +17,35 @@ import {
   Listen,
   Prop,
   State,
+  Watch,
+  Mixin,
 } from '@stencil/core';
 import { animate } from 'animejs';
 import { closestIxMenu } from '../utils/application-layout/context';
 import { createMutationObserver } from '../utils/mutation-observer';
+import { requestAnimationFrameNoNgZone } from '../utils/requestAnimationFrame';
 import type { IxMenuItemBase } from './../menu-item/menu-item.interface';
-import { createEnterLeaveDebounce } from './enter-leave';
+import { hasKeyboardMode } from '../utils/internal/mixins/setup.mixin';
+import { DefaultMixins } from '../utils/internal/component';
+import { getComposedPath } from '../utils/shadow-dom';
+import { makeRef } from '../utils/make-ref';
+import { dropdownController } from '../dropdown/dropdown-controller';
+
 const DefaultIxMenuItemHeight = 40;
 const DefaultAnimationTimeout = 150;
 
 @Component({
   tag: 'ix-menu-category',
   styleUrl: 'menu-category.scss',
-  shadow: true,
+  shadow: {
+    delegatesFocus: true,
+  },
 })
-export class MenuCategory implements IxMenuItemBase {
-  @Element() hostElement!: HTMLIxMenuCategoryElement;
+export class MenuCategory
+  extends Mixin(...DefaultMixins)
+  implements IxMenuItemBase
+{
+  @Element() override hostElement!: HTMLIxMenuCategoryElement;
 
   /**
    * Display name of the category
@@ -57,7 +70,6 @@ export class MenuCategory implements IxMenuItemBase {
   @Prop() tooltipText?: string;
 
   /** @internal */
-  // eslint-disable-next-line @stencil-community/decorators-style
   @Event({ bubbles: true, cancelable: true })
   closeOtherCategories!: EventEmitter;
 
@@ -70,14 +82,8 @@ export class MenuCategory implements IxMenuItemBase {
   private menuItemsContainer?: HTMLDivElement;
   private ixMenu?: HTMLIxMenuElement;
 
-  private enterLeaveDebounce = createEnterLeaveDebounce(
-    () => {
-      this.onPointerEnter();
-    },
-    () => {
-      this.onPointerLeave();
-    }
-  );
+  private readonly dropdownRef = makeRef<HTMLIxDropdownElement>();
+  private readonly categoryParentRef = makeRef<HTMLIxMenuItemElement>();
 
   private isNestedItemActive() {
     return this.getNestedItems().some((item) => item.active);
@@ -120,36 +126,112 @@ export class MenuCategory implements IxMenuItemBase {
   }
 
   private animateFadeIn() {
+    this.showItems = true;
+    this.showDropdown = false;
+
     animate(this.menuItemsContainer!, {
       duration: DefaultAnimationTimeout,
       easing: 'easeInSine',
       opacity: [0, 1],
       maxHeight: [0, this.getNestedItemsHeight() + DefaultIxMenuItemHeight],
-      onBegin: () => {
-        this.showItems = true;
-        this.showDropdown = false;
-      },
     });
   }
 
-  private onPointerEnter() {
+  private showMenuItemDropdown() {
     if (this.ixMenu?.expand) {
       return;
     }
     this.closeOtherCategories.emit();
-    this.showDropdown = true;
+
+    if (this.dropdownRef.current) {
+      const ref = dropdownController.getDropdownById(
+        this.dropdownRef.current.dataset.ixDropdown!
+      );
+
+      if (ref) {
+        dropdownController.present(ref);
+      }
+    }
   }
 
   @Listen('closeOtherCategories', { target: 'window' })
-  private onPointerLeave() {
-    this.showDropdown = false;
+  private hideMenuItemDropdown() {
+    if (this.dropdownRef.current) {
+      const ref = dropdownController.getDropdownById(
+        this.dropdownRef.current.dataset.ixDropdown!
+      );
+
+      if (ref) {
+        dropdownController.dismiss(ref);
+      }
+    }
   }
 
-  private onCategoryClick(e: MouseEvent) {
-    e.stopPropagation();
+  private handleCategoryVisibility() {
     if (this.ixMenu?.expand) {
       this.onExpandCategory(!this.showItems);
       return;
+    }
+
+    this.showMenuItemDropdown();
+  }
+
+  private onCategoryClick(event: MouseEvent) {
+    event.stopPropagation();
+    this.handleCategoryVisibility();
+  }
+
+  private onKeyDown(event: KeyboardEvent) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      const isClosingPanel = this.ixMenu?.expand && this.showItems;
+      this.handleCategoryVisibility();
+
+      if (!isClosingPanel) {
+        const items = this.getNestedItems();
+        const firstItem = items[0];
+        if (firstItem) {
+          requestAnimationFrameNoNgZone(() =>
+            requestAnimationFrameNoNgZone(() => firstItem.focus())
+          );
+        }
+      }
+    }
+  }
+
+  private onMenuItemsKeyDown(event: KeyboardEvent) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      this.categoryParentRef.current?.focus();
+      this.handleCategoryVisibility();
+      return;
+    }
+
+    if (
+      event.key !== 'ArrowDown' &&
+      event.key !== 'ArrowUp' &&
+      event.key !== 'Tab'
+    ) {
+      return;
+    }
+
+    const items = this.getNestedItems();
+    if (items.length === 0) {
+      return;
+    }
+
+    const path = event.composedPath();
+    const currentIndex = items.findIndex((item) => path.includes(item));
+    if (currentIndex === -1) {
+      return;
+    }
+
+    event.preventDefault();
+
+    if (event.key === 'ArrowDown' || (event.key === 'Tab' && !event.shiftKey)) {
+      items[(currentIndex + 1) % items.length].focus();
+    } else {
+      items[(currentIndex - 1 + items.length) % items.length].focus();
     }
   }
 
@@ -188,7 +270,7 @@ export class MenuCategory implements IxMenuItemBase {
     return this.menuExpand && (this.showItems || this.isNestedItemActive());
   }
 
-  componentWillLoad() {
+  override componentWillLoad() {
     const closestMenu = closestIxMenu(this.hostElement);
     if (!closestMenu) {
       throw Error('ix-menu-category can only be used as a child of ix-menu');
@@ -199,19 +281,21 @@ export class MenuCategory implements IxMenuItemBase {
     this.showItems = this.isCategoryItemListVisible();
   }
 
-  componentDidLoad() {
+  override componentDidLoad() {
     this.observer = createMutationObserver((mutations: MutationRecord[]) =>
       this.onNestedItemsChanged(mutations)
     );
 
     this.observer.observe(this.hostElement, {
       attributes: true,
+      attributeFilter: ['class'],
       childList: true,
       subtree: true,
     });
 
-    requestAnimationFrame(() => {
+    requestAnimationFrameNoNgZone(() => {
       this.onNestedItemsChanged();
+      this.onShowItemsChange();
     });
 
     this.ixMenu?.addEventListener(
@@ -231,35 +315,46 @@ export class MenuCategory implements IxMenuItemBase {
     this.menuItemsContainer?.style.removeProperty('opacity');
   }
 
-  disconnectedCallback() {
+  @Watch('showDropdown')
+  @Watch('showItems')
+  onShowItemsChange() {
+    this.getNestedItems().forEach((item) => {
+      item.hidden = !this.showItems && !this.showDropdown;
+    });
+  }
+
+  override disconnectedCallback() {
     if (this.observer) {
       this.observer.disconnect();
     }
   }
 
-  render() {
+  override render() {
     return (
       <Host
         class={{
           expanded: this.showItems,
         }}
         onPointerEnter={() => {
-          this.enterLeaveDebounce.onEnter();
+          this.showMenuItemDropdown();
         }}
         onPointerLeave={(event: PointerEvent) => {
           if (event.pointerType === 'touch') {
             return;
           }
-          this.enterLeaveDebounce.onLeave();
+          this.hideMenuItemDropdown();
         }}
       >
         <ix-menu-item
+          aria-haspopup={'true'}
+          aria-expanded={this.showItems || this.showDropdown ? 'true' : 'false'}
+          ref={this.categoryParentRef}
           class={'category-parent'}
           active={this.isNestedItemActive()}
           notifications={this.notifications}
           icon={this.icon}
           onClick={(e) => this.onCategoryClick(e)}
-          onFocus={() => this.onPointerEnter()}
+          onKeyDown={(event) => this.onKeyDown(event)}
           tooltipText={this.tooltipText}
           isCategory
         >
@@ -276,18 +371,42 @@ export class MenuCategory implements IxMenuItemBase {
           </span>
         </ix-menu-item>
         <div
-          ref={(ref) => (this.menuItemsContainer = ref!)}
+          ref={(ref) => (this.menuItemsContainer = ref)}
           class={{
             'menu-items': true,
             'menu-items--expanded': this.showItems,
             'menu-items--collapsed': !this.showItems,
           }}
+          role="menu"
+          onKeyDown={(e) => this.onMenuItemsKeyDown(e)}
         >
           {this.showItems ? <slot></slot> : null}
         </div>
         <ix-dropdown
+          ref={this.dropdownRef}
+          hostRole="menu"
+          aria-label={this.label}
           closeBehavior={'both'}
           show={this.showDropdown}
+          onShowChange={({ detail: dropdownShow }) => {
+            if (dropdownShow) {
+              return;
+            }
+
+            const activeElement = document.activeElement;
+            const isFocused = getComposedPath(
+              activeElement as HTMLElement
+            ).includes(this.hostElement);
+
+            if (hasKeyboardMode() && isFocused) {
+              // Ugly workaround to restore focus to the category after the dropdown is closed,
+              // because focus gets lost when the dropdown is removed from the DOM.
+              // This is needed to ensure keyboard users can continue navigating after closing the dropdown with the keyboard.
+              requestAnimationFrameNoNgZone(() =>
+                requestAnimationFrameNoNgZone(() => this.hostElement.focus())
+              );
+            }
+          }}
           onShowChanged={({ detail: dropdownShown }: CustomEvent<boolean>) => {
             this.showDropdown = dropdownShown;
           }}
@@ -297,6 +416,7 @@ export class MenuCategory implements IxMenuItemBase {
           offset={{
             mainAxis: 3,
           }}
+          focusHost={this.hostElement}
           onClick={(e) => {
             if (e.target instanceof HTMLElement) {
               if (e.target.tagName === 'IX-MENU-ITEM') {
@@ -306,8 +426,22 @@ export class MenuCategory implements IxMenuItemBase {
               }
             }
           }}
+          onFocusout={(event) => {
+            const relatedTarget = event.relatedTarget as HTMLElement | null;
+            if (
+              relatedTarget &&
+              relatedTarget !== this.hostElement &&
+              !this.hostElement.contains(relatedTarget)
+            ) {
+              this.showDropdown = false;
+            }
+          }}
         >
-          <ix-dropdown-item class={'category-dropdown-header'}>
+          <ix-dropdown-item
+            class={'category-dropdown-header'}
+            tabindex={-1}
+            aria-hidden="true"
+          >
             <ix-typography format="label" bold textColor="std">
               {this.label}
             </ix-typography>

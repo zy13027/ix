@@ -169,7 +169,7 @@ regressionTest('should open and close settings', async ({ mount, page }) => {
   let settings = page.locator('ix-menu-settings');
   await expect(settings).toBeVisible();
 
-  const closeButton = settings.getByRole('button');
+  const closeButton = settings.getByRole('button', { name: 'Close Settings' });
   await closeButton.click();
   await expect(settings).not.toBeVisible();
 
@@ -214,7 +214,7 @@ regressionTest('should open and close about', async ({ mount, page }) => {
   let about = page.locator('ix-menu-about');
   await expect(about).toBeVisible();
 
-  const closeButton = about.getByRole('button');
+  const closeButton = about.getByRole('button', { name: 'Close About' });
   await closeButton.click();
   await expect(about).not.toBeVisible();
 
@@ -296,22 +296,6 @@ regressionTest(
   }
 );
 
-regressionTest('should have correct aria label', async ({ mount, page }) => {
-  await mount(`
-    <ix-menu pinned>
-      <ix-menu-item>Random</ix-menu-item>
-    </ix-menu>
-  `);
-
-  const expandButton = page.locator('ix-menu').locator('ix-menu-expand-icon');
-
-  await expect(expandButton).toHaveAttribute('aria-hidden', 'true');
-
-  await expandButton.click();
-
-  await expect(expandButton).toHaveAttribute('aria-hidden', 'true');
-});
-
 regressionTest(
   'should collapse category when menu is programmatically collapsed',
   async ({ mount, page }) => {
@@ -328,8 +312,8 @@ regressionTest(
   `,
       {
         icons: {
-          iconRocket,
           iconGlobe,
+          iconRocket,
         },
       }
     );
@@ -364,6 +348,34 @@ async function clickSettingsButton(element: Locator, page: Page) {
   await settingsButton.click();
   await page.waitForTimeout(1000);
 }
+
+regressionTest(
+  'should not warn "Menu already defined" when ix-menu is remounted after being removed',
+  async ({ mount, page }) => {
+    const consoleWarnings: string[] = [];
+    page.on('console', (msg) => {
+      if (msg.type() === 'warning') {
+        consoleWarnings.push(msg.text());
+      }
+    });
+
+    await mount(`<ix-menu><ix-menu-item>Item</ix-menu-item></ix-menu>`);
+    await expect(page.locator('ix-menu')).toHaveClass(/\bhydrated\b/);
+
+    await page.evaluate(() => {
+      document.querySelector('ix-menu')?.remove();
+    });
+
+    await page.evaluate(() => {
+      const menu = document.createElement('ix-menu');
+      document.body.appendChild(menu);
+    });
+
+    await expect(page.locator('ix-menu')).toHaveClass(/\bhydrated\b/);
+
+    expect(consoleWarnings).not.toContain('Menu already defined');
+  }
+);
 
 regressionTest.describe('menu-avatar tooltip', () => {
   regressionTest(

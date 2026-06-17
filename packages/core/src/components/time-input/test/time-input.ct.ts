@@ -106,6 +106,9 @@ regressionTest.describe('time input tests', () => {
     async ({ page }) => {
       const input = page.locator('input');
       const fieldWrapper = page.locator('ix-field-wrapper');
+      const visibleInvalidText = fieldWrapper
+        .locator('ix-typography:visible')
+        .filter({ hasText: /is not valid/i });
       const dropdown = page.locator('ix-dropdown[data-testid="time-dropdown"]');
       const iconButton = page.locator(
         'ix-icon-button[data-testid="open-time-picker"]'
@@ -140,7 +143,7 @@ regressionTest.describe('time input tests', () => {
       await page.locator('ix-time-picker ix-button').click();
 
       await expect(input).not.toHaveClass(/is-invalid/);
-      await expect(fieldWrapper).not.toContainText('Time is not valid');
+      await expect(visibleInvalidText).toHaveCount(0);
     }
   );
 
@@ -182,6 +185,88 @@ regressionTest.describe('time input tests', () => {
           .locator('ix-typography')
           .filter({ hasText: 'Custom time error' })
       ).toHaveText(/Custom time error/);
+    }
+  );
+});
+
+regressionTest.describe('time input min/max tests', () => {
+  regressionTest.beforeEach(async ({ mount }) => {
+    await mount(
+      `<ix-time-input
+        value="12:00:00"
+        format="HH:mm:ss"
+        min-time="13:00:00"
+        max-time="17:30:00"
+      >
+      </ix-time-input>`
+    );
+  });
+
+  regressionTest(
+    'out-of-range initial value should be invalid',
+    async ({ page }) => {
+      await expect(page.locator('input')).toHaveClass(/is-invalid/);
+      await expect(page.locator('ix-field-wrapper')).toContainText(
+        'Time is not valid'
+      );
+    }
+  );
+
+  regressionTest(
+    'picker selection matches input when value is out of range',
+    async ({ page }) => {
+      await page
+        .locator('ix-icon-button[data-testid="open-time-picker"]')
+        .click();
+
+      await expect(
+        page.locator('ix-time-picker [data-element-container-id="hour-12"]')
+      ).toHaveClass(/selected/);
+    }
+  );
+
+  regressionTest(
+    'updating min/max attributes should revalidate current value',
+    async ({ page }) => {
+      const timeInput = page.locator('ix-time-input');
+      const input = page.locator('input');
+
+      await expect(input).toHaveClass(/is-invalid/);
+
+      await timeInput.evaluateHandle((el) => {
+        el.setAttribute('min-time', '10:00:00');
+        el.setAttribute('max-time', '17:30:00');
+      });
+
+      await expect(input).not.toHaveClass(/is-invalid/);
+
+      await timeInput.evaluateHandle((el) => {
+        el.setAttribute('min-time', '13:00:00');
+      });
+
+      await expect(input).toHaveClass(/is-invalid/);
+    }
+  );
+
+  regressionTest(
+    'selecting a valid time should clear invalid state',
+    async ({ page }) => {
+      await page
+        .locator('ix-icon-button[data-testid="open-time-picker"]')
+        .click();
+      await page
+        .locator('ix-time-picker [data-element-container-id="hour-16"]')
+        .click();
+      await page
+        .locator('ix-time-picker [data-element-container-id="minute-0"]')
+        .click();
+      await page
+        .locator('ix-time-picker [data-element-container-id="second-0"]')
+        .click();
+      await page.locator('ix-time-picker ix-button').click();
+
+      await expect(page.locator('input')).toHaveValue('16:00:00');
+      await expect(page.locator('input')).not.toHaveClass(/is-invalid/);
     }
   );
 });

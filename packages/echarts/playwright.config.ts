@@ -16,27 +16,43 @@ import { devices } from '@playwright/test';
  */
 // require('dotenv').config();
 
-const THEMES = [
-  'theme-classic-light',
-  'theme-classic-dark',
-  'theme-brand-light',
-  'theme-brand-dark',
+let THEMES = [
+  {
+    name: 'theme-classic-light',
+    theme: 'classic',
+    colorSchema: 'light',
+  },
+  {
+    name: 'theme-classic-dark',
+    theme: 'classic',
+    colorSchema: 'dark',
+  },
+  {
+    name: 'theme-brand-light',
+    theme: 'brand',
+    colorSchema: 'light',
+  },
+  {
+    name: 'theme-brand-dark',
+    theme: 'brand',
+    colorSchema: 'dark',
+  },
 ];
 
-const isCI =
-  !!(globalThis as { process?: { env?: Record<string, string | undefined> } })
-    .process?.env?.CI;
-
 function buildProjectsWithThemes() {
-  return THEMES.map((theme) => ({
-    name: `chromium - ${theme}`,
-    use: {
-      ...devices['Desktop Chrome'],
-    },
-    metadata: {
-      theme,
-    },
-  }));
+  return THEMES.flatMap((theme) => {
+    return [
+      {
+        name: `chromium - ${theme.name}`,
+        use: {
+          ...devices['Desktop Chrome'],
+        },
+        metadata: {
+          theme,
+        },
+      },
+    ];
+  });
 }
 
 /**
@@ -57,9 +73,9 @@ const config: PlaywrightTestConfig = {
   /* Run tests in files in parallel */
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
-  forbidOnly: isCI,
+  forbidOnly: !!process.env.CI,
   /* Retry on CI only */
-  retries: isCI ? 2 : 0,
+  retries: process.env.CI ? 2 : 0,
   /* Opt out of parallel tests on CI. */
   workers: 10,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
@@ -77,9 +93,8 @@ const config: PlaywrightTestConfig = {
   /* Configure projects for major browsers */
   projects: buildProjectsWithThemes(),
   webServer: {
-    command: 'pnpm host-root',
-    port: 8080,
-    reuseExistingServer: !isCI,
+    command: 'pnpm vite',
+    port: 5173,
   },
 };
 

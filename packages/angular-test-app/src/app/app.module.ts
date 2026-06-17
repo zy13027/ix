@@ -20,6 +20,7 @@ import { NgxEchartsModule } from 'ngx-echarts';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import * as echarts from 'echarts';
 import AboutAndLegal from '../preview-examples/about-and-legal';
+import AboutAndLegalLegacy from '../preview-examples/about-and-legal-legacy';
 import ActionCard from '../preview-examples/action-card';
 import AddIcons from '../preview-examples/add-icons';
 import AgGrid from '../preview-examples/aggrid';
@@ -65,7 +66,9 @@ import ContentHeaderWithSlot from '../preview-examples/content-header-with-slot'
 import CustomField from '../preview-examples/custom-field';
 import CustomFieldValidation from '../preview-examples/custom-field-validation';
 import DateDropdown from '../preview-examples/date-dropdown';
-import DateDropdownUserRange from '../preview-examples/date-dropdown-user-range';
+import DateDropdownPresets from '../preview-examples/date-dropdown-presets';
+import DateRange from '../preview-examples/date-range';
+import DatetimeRange from '../preview-examples/datetime-range';
 import DateInput from '../preview-examples/date-input';
 import DateInputDisabled from '../preview-examples/date-input-disabled';
 import DateInputLabel from '../preview-examples/date-input-label';
@@ -76,9 +79,14 @@ import Datepicker from '../preview-examples/datepicker';
 import DatepickerLocale from '../preview-examples/datepicker-locale';
 import DatepickerRange from '../preview-examples/datepicker-range';
 import Datetimepicker from '../preview-examples/datetimepicker';
+import DatetimeInput from '../preview-examples/datetime-input';
+import DatetimeInputDisabled from '../preview-examples/datetime-input-disabled';
+import DatetimeInputLabel from '../preview-examples/datetime-input-label';
+import DatetimeInputMinMaxDate from '../preview-examples/datetime-input-min-max-date';
+import DatetimeInputReadonly from '../preview-examples/datetime-input-readonly';
+import DatetimeInputValidation from '../preview-examples/datetime-input-validation';
+import DatetimeInputWithSlots from '../preview-examples/datetime-input-with-slots';
 import Divider from '../preview-examples/divider';
-import Drawer from '../preview-examples/drawer';
-import DrawerFullHeight from '../preview-examples/drawer-full-height';
 import Dropdown from '../preview-examples/dropdown';
 import DropdownButton from '../preview-examples/dropdown-button';
 import DropdownButtonIcon from '../preview-examples/dropdown-button-icon';
@@ -168,6 +176,9 @@ import ModalByInstanceContent from '../preview-examples/modal-by-instance-conten
 import ModalByTemplate from '../preview-examples/modal-by-template';
 import ModalClose from '../preview-examples/modal-close';
 import ModalFormIxButtonSubmit from '../preview-examples/modal-form-ix-button-submit';
+import ModalNonBlocking, {
+  ModalNonBlockingContent,
+} from '../preview-examples/modal-non-blocking';
 import ModalSizes from '../preview-examples/modal-sizes';
 import NumberInput from '../preview-examples/number-input';
 import NumberInputDisabled from '../preview-examples/number-input-disabled';
@@ -195,21 +206,25 @@ import Radiobutton from '../preview-examples/radio-button';
 import RadioDisabled from '../preview-examples/radio-disabled';
 import RadioGroup from '../preview-examples/radio-group';
 import RadioValidation from '../preview-examples/radio-validation';
+import RangeField from '../preview-examples/range-field';
 import Select from '../preview-examples/select';
 import SelectEditable from '../preview-examples/select-editable';
 import SelectMultiple from '../preview-examples/select-multiple';
 import SelectNgModel from '../preview-examples/select-ng-model';
 import SelectValidation from '../preview-examples/select-validation';
 import Settings from '../preview-examples/settings';
+import SettingsLegacy from '../preview-examples/settings-legacy';
 import Slider from '../preview-examples/slider';
 import SliderError from '../preview-examples/slider-error';
 import SliderMarker from '../preview-examples/slider-marker';
 import SliderTrace from '../preview-examples/slider-trace';
+import SliderValidation from '../preview-examples/slider-validation';
 import Spinner from '../preview-examples/spinner';
 import SpinnerLarge from '../preview-examples/spinner-large';
 import SplitButton from '../preview-examples/split-button';
 import SplitButtonIcons from '../preview-examples/split-button-icons';
 import Tabs from '../preview-examples/tabs';
+import TabsOverflow from '../preview-examples/tabs-overflow';
 import TabsRounded from '../preview-examples/tabs-rounded';
 import Textarea from '../preview-examples/textarea';
 import TextareaDisabled from '../preview-examples/textarea-disabled';
@@ -222,7 +237,9 @@ import TextareaValidation from '../preview-examples/textarea-validation';
 import ThemeSwitcher from '../preview-examples/theme-switcher';
 import Tile from '../preview-examples/tile';
 import TimeInput from '../preview-examples/time-input';
+import TimeRange from '../preview-examples/time-range';
 import Timepicker from '../preview-examples/timepicker';
+import TimepickerMinMaxTime from '../preview-examples/timepicker-min-max-time';
 import Toast from '../preview-examples/toast';
 import ToastCustom from '../preview-examples/toast-custom';
 import ToastPosition from '../preview-examples/toast-position';
@@ -258,6 +275,7 @@ import WorkflowVertical from '../preview-examples/workflow-vertical';
     InputFormValidation,
     AppComponent,
     AboutAndLegal,
+    AboutAndLegalLegacy,
     ActionCard,
     AddIcons,
     AgGrid,
@@ -299,7 +317,9 @@ import WorkflowVertical from '../preview-examples/workflow-vertical';
     CustomField,
     CustomFieldValidation,
     DateDropdown,
-    DateDropdownUserRange,
+    DateDropdownPresets,
+    DateRange,
+    DatetimeRange,
     DateInput,
     DateInputDisabled,
     DateInputLabel,
@@ -314,9 +334,14 @@ import WorkflowVertical from '../preview-examples/workflow-vertical';
     Datepicker,
     DatepickerLocale,
     Datetimepicker,
+    DatetimeInput,
+    DatetimeInputDisabled,
+    DatetimeInputLabel,
+    DatetimeInputMinMaxDate,
+    DatetimeInputReadonly,
+    DatetimeInputValidation,
+    DatetimeInputWithSlots,
     Divider,
-    DrawerFullHeight,
-    Drawer,
     DropdownButtonIcon,
     DropdownButton,
     DropdownIcon,
@@ -392,6 +417,8 @@ import WorkflowVertical from '../preview-examples/workflow-vertical';
     ModalByTemplate,
     ModalClose,
     ModalFormIxButtonSubmit,
+    ModalNonBlockingContent,
+    ModalNonBlocking,
     ModalSizes,
     PaginationAdvanced,
     Pagination,
@@ -405,6 +432,7 @@ import WorkflowVertical from '../preview-examples/workflow-vertical';
     RadioDisabled,
     RadioGroup,
     RadioValidation,
+    RangeField,
     PushCard,
     SelectEditable,
     SelectMultiple,
@@ -412,9 +440,11 @@ import WorkflowVertical from '../preview-examples/workflow-vertical';
     SelectValidation,
     Select,
     Settings,
+    SettingsLegacy,
     SliderError,
     SliderMarker,
     SliderTrace,
+    SliderValidation,
     Slider,
     SpinnerLarge,
     Spinner,
@@ -422,6 +452,7 @@ import WorkflowVertical from '../preview-examples/workflow-vertical';
     SplitButton,
     TabsRounded,
     Tabs,
+    TabsOverflow,
     TextareaLegacyDisabled,
     Textarea,
     TextareaDisabled,
@@ -441,7 +472,9 @@ import WorkflowVertical from '../preview-examples/workflow-vertical';
     ThemeSwitcher,
     Tile,
     TimeInput,
+    TimeRange,
     Timepicker,
+    TimepickerMinMaxTime,
     ToastCustom,
     ToastPosition,
     Toast,

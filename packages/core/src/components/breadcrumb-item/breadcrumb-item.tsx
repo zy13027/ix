@@ -16,30 +16,29 @@ import {
   h,
   Host,
   Prop,
-  State,
+  Mixin,
+  Watch,
 } from '@stencil/core';
-import { animate } from 'animejs';
 import { BaseButton, BaseButtonProps } from '../button/base-button';
-import { a11yHostAttributes } from '../utils/a11y';
 import { iconChevronRightSmall } from '@siemens/ix-icons/icons';
-import Animation from '../utils/animation';
 import { AnchorInterface, AnchorTarget } from '../button/button.interface';
+import { DefaultMixins } from '../utils/internal/component';
+import {
+  InheritAriaAttributesMixin,
+  InheritAriaAttributesMixinContract,
+} from '../utils/internal/mixins/accessibility/inherit-aria-attributes.mixin';
+import type { BreadcrumbClick } from '../breadcrumb/breadcrumb.types';
 
 @Component({
   tag: 'ix-breadcrumb-item',
   styleUrl: 'breadcrumb-item.scss',
   shadow: true,
 })
-export class BreadcrumbItem implements AnchorInterface {
-  @Element() hostElement!: HTMLIxBreadcrumbItemElement;
-
-  /**
-   * ARIA label for the button
-   * Will be set as aria-label for the nested HTML button element
-   *
-   * @since 3.2.0
-   */
-  @Prop() ariaLabelButton?: string;
+export class BreadcrumbItem
+  extends Mixin(...DefaultMixins, InheritAriaAttributesMixin)
+  implements AnchorInterface, InheritAriaAttributesMixinContract
+{
+  @Element() override hostElement!: HTMLIxBreadcrumbItemElement;
 
   /**
    * Breadcrumb label
@@ -66,6 +65,13 @@ export class BreadcrumbItem implements AnchorInterface {
   @Prop() target?: AnchorTarget = '_self';
 
   /**
+   * Will be used as the key for the breadcrumb item, which will be emitted in the itemClick event when the breadcrumb item is clicked.
+   *
+   * @since 5.0.0
+   */
+  @Prop() breadcrumbKey!: string;
+
+  /**
    * Specifies the relationship between the current document and the linked document when href is provided.
    *
    * @since 4.0.0
@@ -84,35 +90,44 @@ export class BreadcrumbItem implements AnchorInterface {
   /** @internal */
   @Prop() isDropdownTrigger = false;
 
+  /** @internal */
+  @Prop() isCurrentPage = false;
+
   /**@internal */
-  @Event() itemClick!: EventEmitter<string>;
+  @Event() itemClick!: EventEmitter<BreadcrumbClick>;
 
-  @State() a11y: any;
-
-  componentDidLoad() {
-    this.animationFadeIn();
+  override componentWillLoad() {
+    super.componentWillLoad();
+    this.validateProps();
   }
 
-  componentWillLoad() {
-    this.a11y = a11yHostAttributes(this.hostElement, [
-      'aria-describedby',
-      'aria-controls',
-      'aria-expanded',
-    ]);
+  @Watch('breadcrumbKey')
+  validateProps() {
+    if (!this.breadcrumbKey) {
+      console.warn(
+        '[IxBreadcrumbItem] The "breadcrumbKey" prop is required for breadcrumb items to function properly.',
+        this.hostElement
+      );
+    }
   }
 
-  animationFadeIn() {
-    animate(this.hostElement, {
-      duration: Animation.defaultTime,
-      opacity: [0, 1],
-      translateX: ['-100%', '0%'],
-      easing: 'linear',
-    });
-  }
+  override render() {
+    if (this.invisible) {
+      return <Host class={'invisible'} aria-hidden></Host>;
+    }
 
-  render() {
+    const fallbackAriaLabel =
+      this.label ?? this.hostElement.textContent?.trim();
+
+    const ariaAttributes = {
+      ...this.inheritAriaAttributes,
+      'aria-label':
+        this.inheritAriaAttributes['aria-label'] ?? fallbackAriaLabel,
+      ...(this.isCurrentPage ? { 'aria-current': 'page' } : {}),
+    };
+
     const props: BaseButtonProps = {
-      variant: this.subtle ? 'subtle-primary' : 'tertiary',
+      variant: !this.hideChevron && this.subtle ? 'subtle-primary' : 'tertiary',
       iconOnly: false,
       iconOval: false,
       disabled: false,
@@ -126,42 +141,41 @@ export class BreadcrumbItem implements AnchorInterface {
       extraClasses: {
         'dropdown-trigger': this.isDropdownTrigger,
       },
-      ariaAttributes: { ...this.a11y, 'aria-label': this.ariaLabelButton },
+      ariaAttributes,
       href: this.href,
       target: this.target,
       rel: this.rel,
     };
-
-    if (this.invisible) {
-      return <Host class={'invisible'}></Host>;
-    }
 
     return (
       <Host
         class={{
           'hide-chevron': this.hideChevron,
         }}
-        onClick={() => this.itemClick.emit(this.label)}
+        onClick={() =>
+          this.itemClick.emit({
+            breadcrumbKey: this.breadcrumbKey,
+            label: this.label ?? this.hostElement.textContent?.trim() ?? '',
+          })
+        }
       >
-        <li>
-          <BaseButton
-            {...props}
-            afterContent={
-              <Fragment>
-                {!this.hideChevron && (
-                  <ix-icon
-                    name={iconChevronRightSmall}
-                    size="16"
-                    class={'chevron'}
-                  ></ix-icon>
-                )}
-              </Fragment>
-            }
-          >
-            {this.label}
-            <slot></slot>
-          </BaseButton>
-        </li>
+        <BaseButton
+          {...props}
+          afterContent={
+            <Fragment>
+              {!this.hideChevron && (
+                <ix-icon
+                  name={iconChevronRightSmall}
+                  size="16"
+                  class={'chevron'}
+                ></ix-icon>
+              )}
+            </Fragment>
+          }
+        >
+          {this.label}
+          <slot></slot>
+        </BaseButton>
       </Host>
     );
   }

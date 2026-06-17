@@ -20,7 +20,8 @@ import {
 import { animate } from 'animejs';
 import { A11yAttributes, a11yBoolean, a11yHostAttributes } from '../utils/a11y';
 import Animation from '../utils/animation';
-import { OnListener } from '../utils/listener';
+import { tryFocusElement } from '../utils/focus/focus-utilities';
+import { IX_MODAL_AUTOFOCUS_SELECTOR } from '../utils/modal/modal';
 import { waitForElement } from '../utils/waitForElement';
 import { IxModalSize } from './modal.types';
 
@@ -50,7 +51,8 @@ export class Modal {
   @Prop() hideBackdrop = false;
 
   /**
-   * Dismiss modal on backdrop click
+   * Dismiss modal on backdrop click (outside the dialog panel).
+   * Ignored when **isNonBlocking** is `true`.
    */
   @Prop() closeOnBackdropClick = false;
 
@@ -68,9 +70,10 @@ export class Modal {
   @Prop() centered = false;
 
   /**
-   * If set to true the modal cannot be closed by pressing the Escape key
+   * Non-modal dialog: page stays interactive, no lightbox or focus trap; `aria-modal` is `false`.
+   * Set before calling `showModal()`; changing while open is unsupported.
    */
-  @Prop() disableEscapeClose = false;
+  @Prop({ reflect: true }) isNonBlocking = false;
 
   /**
    * Dialog close
@@ -84,35 +87,40 @@ export class Modal {
 
   @State() modalVisible = false;
 
-  @OnListener<Modal>('keydown', (self) => self.disableEscapeClose)
-  onKey(e: KeyboardEvent) {
-    if (e.key === 'Escape') {
-      e.preventDefault();
-    }
-  }
-
   get dialog() {
     return this.hostElement.shadowRoot!.querySelector('dialog');
   }
 
   private slideInModal() {
+    const dialog = this.dialog!;
+    dialog.classList.remove('modal-open-settled');
     const duration = this.disableAnimation ? 0 : Animation.mediumTime;
     const translateY = this.centered ? ['-90%', '-50%'] : [0, 40];
 
-    animate(this.dialog!, {
+    const markEntranceSettled = () =>
+      dialog.classList.add('modal-open-settled');
+
+    animate(dialog, {
       duration,
       opacity: [0, 1],
       translateY,
       translateX: ['-50%', '-50%'],
       easing: 'easeOutSine',
+      complete: markEntranceSettled,
     });
+
+    if (duration === 0) {
+      markEntranceSettled();
+    }
   }
 
   private slideOutModal(completeCallback: Function) {
+    const dialog = this.dialog!;
+    dialog.classList.remove('modal-open-settled');
     const duration = this.disableAnimation ? 0 : Animation.mediumTime;
     const translateY = this.centered ? ['-50%', '-90%'] : [40, 0];
 
-    animate(this.dialog!, {
+    animate(dialog, {
       duration,
       opacity: [1, 0],
       translateY,
@@ -126,34 +134,77 @@ export class Modal {
     });
   }
 
-  private onMouseDown(event: MouseEvent) {
-    this.isMouseDownInsideDialog = this.isPointInsideDialog(
-      event.clientX,
-      event.clientY
+  private closeDialog<T = unknown>(
+    type: 'dismiss' | 'close',
+    reason: T,
+    emitter: EventEmitter
+  ) {
+    this.slideOutModal(() => {
+      this.modalVisible = false;
+      this.dialog!.close(JSON.stringify({ type, reason }, null, 2));
+      emitter.emit(reason);
+    });
+  }
+
+  private isInsideDialog(event: MouseEvent) {
+    if (!this.dialog) {
+      return false;
+    }
+
+    const path = event.composedPath();
+
+    if (!path.includes(this.dialog)) {
+      return false;
+    }
+
+    if (event.target !== this.dialog) {
+      return true;
+    }
+
+    const rect = this.dialog.getBoundingClientRect();
+    const { clientX, clientY } = event;
+
+    return (
+      clientX >= rect.left &&
+      clientX <= rect.right &&
+      clientY >= rect.top &&
+      clientY <= rect.bottom
     );
+  }
+
+  private onMouseDown(event: MouseEvent) {
+    this.isMouseDownInsideDialog = this.isInsideDialog(event);
   }
 
   private onMouseUp(event: MouseEvent) {
-    const isMouseUpInsideDialog = this.isPointInsideDialog(
-      event.clientX,
-      event.clientY
-    );
+    const isMouseUpInsideDialog = this.isInsideDialog(event);
 
     if (
       this.closeOnBackdropClick &&
+      !this.isNonBlocking &&
       !this.isMouseDownInsideDialog &&
       !isMouseUpInsideDialog
     ) {
-      this.dismissModal();
+      void this.dismissModal();
     }
   }
 
-  private isPointInsideDialog(x: number, y: number): boolean {
-    const rect = this.dialog!.getBoundingClientRect();
-    return (
-      x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom
-    );
+  private async scheduleInitialAutofocus() {
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const direct = this.hostElement.querySelector<HTMLElement>(
+            IX_MODAL_AUTOFOCUS_SELECTOR
+          );
+          if (direct) {
+            tryFocusElement(direct, { focusVisible: true });
+          }
+          resolve();
+        });
+      });
+    });
   }
+
   /**
    * Show the dialog
    */
@@ -165,9 +216,17 @@ export class Modal {
         this.hostElement.shadowRoot
       );
       this.modalVisible = true;
-      dialog.showModal();
+
+      if (this.isNonBlocking) {
+        dialog.show();
+      } else {
+        dialog.showModal();
+      }
+
       this.slideInModal();
-    } catch (e) {
+
+      await this.scheduleInitialAutofocus();
+    } catch {
       console.error('HTMLDialogElement not existing');
     }
   }
@@ -190,21 +249,7 @@ export class Modal {
       return;
     }
 
-    this.slideOutModal(() => {
-      this.modalVisible = false;
-      this.dialog!.close(
-        JSON.stringify(
-          {
-            type: 'dismiss',
-            reason,
-          },
-          null,
-          2
-        )
-      );
-
-      this.dialogDismiss.emit(reason);
-    });
+    this.closeDialog('dismiss', reason, this.dialogDismiss);
   }
 
   /**
@@ -216,21 +261,7 @@ export class Modal {
       return;
     }
 
-    this.slideOutModal(() => {
-      this.modalVisible = false;
-      this.dialog!.close(
-        JSON.stringify(
-          {
-            type: 'close',
-            reason,
-          },
-          null,
-          2
-        )
-      );
-
-      this.dialogClose.emit(reason);
-    });
+    this.closeDialog('close', reason, this.dialogClose);
   }
 
   componentWillLoad() {
@@ -244,11 +275,12 @@ export class Modal {
           visible: this.modalVisible,
           'no-backdrop': this.hideBackdrop,
           'align-center': this.centered,
+          'non-blocking': this.isNonBlocking,
         }}
       >
         <div class="dialog-backdrop">
           <dialog
-            aria-modal={a11yBoolean(true)}
+            aria-modal={a11yBoolean(!this.isNonBlocking)}
             aria-describedby={this.ariaAttributes['aria-describedby']}
             aria-labelledby={this.ariaAttributes['aria-labelledby']}
             class={{
@@ -258,9 +290,16 @@ export class Modal {
             onClose={() => this.dismissModal()}
             onMouseDown={(event) => this.onMouseDown(event)}
             onMouseUp={(event) => this.onMouseUp(event)}
+            onKeyDown={(e: KeyboardEvent) => {
+              // Non-blocking uses dialog.show(); Escape is not guaranteed to fire cancel like showModal().
+              if (this.isNonBlocking && e.key === 'Escape') {
+                e.preventDefault();
+                void this.dismissModal();
+              }
+            }}
             onCancel={(e) => {
               e.preventDefault();
-              this.dismissModal();
+              void this.dismissModal();
             }}
           >
             <slot></slot>

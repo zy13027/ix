@@ -8,7 +8,11 @@
  */
 import { expect, Page } from '@playwright/test';
 import { regressionTest } from '@utils/test';
-import { dismissModal, ModalInstance, showModal } from './../../utils/modal';
+import {
+  dismissModal as dismissModalFromIx,
+  showModal as showModalFromIx,
+  type ModalInstance,
+} from './../../utils/modal';
 import {
   iconError,
   iconInfo,
@@ -18,11 +22,11 @@ import {
 } from '@siemens/ix-icons/icons';
 
 declare global {
-  interface Window {
-    dismissModal: typeof dismissModal;
-    showModal: typeof showModal;
-    __counter: number;
-  }
+  var dismissModal: typeof dismissModalFromIx;
+  var showModal: typeof showModalFromIx;
+  var showMessage: any;
+  var __counter: number;
+  var __nbBgClick: boolean | undefined;
 }
 
 async function setupModalEnvironment(page: Page) {
@@ -32,21 +36,38 @@ async function setupModalEnvironment(page: Page) {
       script.type = 'module';
       script.innerHTML = `
         import * as ix from 'http://127.0.0.1:8080/www/build/index.esm.js';
-        window.showModal = ix.showModal;
-        window.dismissModal = ix.dismissModal;
+        globalThis.showModal = ix.showModal;
+        globalThis.dismissModal = ix.dismissModal;
 
-        window.showMessage = ix.showMessage;
-        window.showMessage.info = ix.showMessage.info;
-        window.showMessage.error = ix.showMessage.error;
-        window.showMessage.success = ix.showMessage.success;
-        window.showMessage.question = ix.showMessage.question;
+        globalThis.showMessage = ix.showMessage;
+        globalThis.showMessage.info = ix.showMessage.info;
+        globalThis.showMessage.error = ix.showMessage.error;
+        globalThis.showMessage.success = ix.showMessage.success;
+        globalThis.showMessage.question = ix.showMessage.question;
       `;
       document.getElementById('mount')?.appendChild(script);
       resolve();
     });
   });
 
-  await page.waitForTimeout(500);
+  await page.waitForFunction(
+    () =>
+      typeof globalThis.showModal === 'function' &&
+      typeof globalThis.dismissModal === 'function' &&
+      globalThis.showMessage != null,
+    { timeout: 15_000 }
+  );
+}
+
+// Native `<dialog>` inside the modal (single dialog per test in this file).
+function modalPanel(page: Page) {
+  return page.getByRole('dialog');
+}
+
+async function waitForModalDialogOpen(page: Page) {
+  const panel = modalPanel(page);
+  await expect(panel).toBeVisible({ timeout: 5000 });
+  await expect(panel).toHaveClass(/modal-open-settled/, { timeout: 5000 });
 }
 
 async function createToggleExample(page: Page) {
@@ -54,12 +75,12 @@ async function createToggleExample(page: Page) {
     function createModalExample() {
       const el = document.createElement('DIV');
       el.style.display = 'contents';
-      el.innerHTML = `<ix-toggle id="toggle"></ix-toggle>`;
+      el.innerHTML = `<ix-toggle id="toggle" aria-label="Toggle"></ix-toggle>`;
       return el;
     }
 
     setTimeout(() => {
-      window.showModal({
+      globalThis.showModal({
         content: createModalExample(),
         closeOnBackdropClick: true,
       });
@@ -67,10 +88,40 @@ async function createToggleExample(page: Page) {
   });
 }
 
+async function createSelectOverflowExample(page: Page) {
+  await page.evaluate(() => {
+    const modal = document.createElement('ix-modal');
+    modal.setAttribute('size', '360');
+
+    const content = document.createElement('ix-modal-content');
+    content.innerHTML = '<div style="height: 12rem;"></div>';
+
+    const select = document.createElement('ix-select');
+    select.setAttribute('id', 'overflow-select');
+    select.style.width = '100%';
+
+    for (let i = 1; i <= 20; i++) {
+      const item = document.createElement('ix-select-item');
+      item.setAttribute('value', `${i}`);
+      item.setAttribute('label', `Item ${i}`);
+      select.appendChild(item);
+    }
+
+    content.appendChild(select);
+
+    modal.appendChild(content);
+
+    globalThis.showModal({
+      content: modal,
+      closeOnBackdropClick: true,
+      animation: false,
+    });
+  });
+}
+
 regressionTest('closes on Escape key down', async ({ mount, page }) => {
   await mount(``);
   await setupModalEnvironment(page);
-  await page.waitForTimeout(1000);
 
   await page.evaluate(() => {
     const elm = document.createElement('ix-modal');
@@ -78,12 +129,12 @@ regressionTest('closes on Escape key down', async ({ mount, page }) => {
       <ix-modal-header>Title</ix-modal-header>
       <ix-modal-content>Content</ix-modal-content>
     `;
-    window.showModal({
+    globalThis.showModal({
       content: elm,
     });
   });
-  const dialog = page.locator('ix-modal dialog');
-  await expect(dialog).toBeVisible();
+  const dialog = modalPanel(page);
+  await waitForModalDialogOpen(page);
   await page.locator('ix-modal-content').click();
   await page.keyboard.down('Escape');
 
@@ -101,17 +152,13 @@ regressionTest.describe('closeOnBackdropClick = true', () => {
       await setupModalEnvironment(page);
       await createToggleExample(page);
 
-      // needed to skip fade out / in animation
-      await page.waitForTimeout(500);
-
       const toggle = page.locator('#toggle');
       await expect(toggle).toBeVisible();
+      await waitForModalDialogOpen(page);
 
       await page.mouse.click(20, 20);
 
-      // needed to skip fade out / in animation
-      await page.waitForTimeout(500);
-      await expect(page.locator('ix-modal dialog')).not.toBeVisible();
+      await expect(modalPanel(page)).not.toBeVisible();
     }
   );
 
@@ -123,12 +170,10 @@ regressionTest.describe('closeOnBackdropClick = true', () => {
       await setupModalEnvironment(page);
       await createToggleExample(page);
 
-      // Wait for modal to appear
-      await page.waitForTimeout(500);
-
-      const modalDialog = page.locator('ix-modal dialog');
+      const modalDialog = modalPanel(page);
       const toggle = page.locator('#toggle');
       await expect(toggle).toBeVisible();
+      await waitForModalDialogOpen(page);
 
       // Get bounding box of the modal to find a point inside it
       const box = await modalDialog.boundingBox();
@@ -145,9 +190,6 @@ regressionTest.describe('closeOnBackdropClick = true', () => {
       await page.mouse.move(20, 20);
       await page.mouse.up();
 
-      // Wait for any animations
-      await page.waitForTimeout(500);
-
       // Modal should still be visible
       await expect(modalDialog).toBeVisible();
     }
@@ -161,11 +203,8 @@ regressionTest.describe('closeOnBackdropClick = true', () => {
       await setupModalEnvironment(page);
       await createToggleExample(page);
 
-      // Wait for modal to appear
-      await page.waitForTimeout(500);
-
-      const modalDialog = page.locator('ix-modal dialog');
-      await expect(modalDialog).toBeVisible();
+      const modalDialog = modalPanel(page);
+      await waitForModalDialogOpen(page);
 
       // Get bounding box of the modal to find a point inside it
       const box = await modalDialog.boundingBox();
@@ -182,9 +221,6 @@ regressionTest.describe('closeOnBackdropClick = true', () => {
       await page.mouse.move(insideX, insideY);
       await page.mouse.up();
 
-      // Wait for any animations
-      await page.waitForTimeout(500);
-
       // Modal should still be visible
       await expect(modalDialog).toBeVisible();
     }
@@ -200,17 +236,332 @@ regressionTest.describe('closeOnBackdropClick = true', () => {
       await setupModalEnvironment(page);
       await createToggleExample(page);
 
-      // needed to skip fade out / in animation
-      await page.waitForTimeout(500);
-
       const toggle = page.locator('#toggle');
       await expect(toggle).toBeVisible();
+      await waitForModalDialogOpen(page);
 
-      await toggle.locator('input').press('Space');
+      await toggle.focus();
+      await toggle.press('Space');
 
-      // needed to skip fade out / in animation
-      await page.waitForTimeout(500);
-      await expect(page.locator('ix-modal dialog')).toBeVisible();
+      await expect(modalPanel(page)).toBeVisible();
+    }
+  );
+
+  regressionTest(
+    'should stay open when selecting ix-select dropdown item outside modal bounds',
+    async ({ mount, page }) => {
+      await mount(`<ix-button>Some background noise</ix-button>`);
+
+      await setupModalEnvironment(page);
+      await createSelectOverflowExample(page);
+
+      const modalDialog = modalPanel(page);
+      await waitForModalDialogOpen(page);
+
+      await page.locator('[data-select-dropdown]').click();
+
+      const dropdownItem = page.getByRole('option', {
+        name: 'Item 1',
+        exact: true,
+      });
+      await expect(dropdownItem).toBeVisible();
+
+      const modalBox = await modalDialog.boundingBox();
+      const itemBox = await dropdownItem.boundingBox();
+
+      if (!modalBox || !itemBox) {
+        throw new Error('Could not resolve bounds for modal or dropdown item');
+      }
+
+      expect(itemBox.y + itemBox.height / 2).toBeGreaterThan(
+        modalBox.y + modalBox.height
+      );
+
+      await dropdownItem.click();
+
+      await expect(modalDialog).toBeVisible();
+    }
+  );
+});
+
+regressionTest.describe('isNonBlocking', () => {
+  regressionTest(
+    'showModal config should set non-blocking mode',
+    async ({ mount, page }) => {
+      await mount(``);
+      await setupModalEnvironment(page);
+
+      await page.evaluate(() => {
+        const elm = document.createElement('ix-modal');
+        elm.innerHTML = `
+      <ix-modal-header>Title</ix-modal-header>
+      <ix-modal-content>Content</ix-modal-content>
+    `;
+        globalThis.showModal({
+          content: elm,
+          isNonBlocking: true,
+          animation: false,
+        });
+      });
+
+      await waitForModalDialogOpen(page);
+      await expect(page.locator('ix-modal')).toHaveClass(/non-blocking/);
+      await expect(modalPanel(page)).toHaveAttribute('aria-modal', 'false');
+    }
+  );
+
+  regressionTest(
+    'non-blocking modal should not close on backdrop click',
+    async ({ mount, page }) => {
+      await mount(`<ix-button>Background</ix-button>`);
+      await setupModalEnvironment(page);
+
+      await page.evaluate(() => {
+        const elm = document.createElement('ix-modal');
+        elm.innerHTML = `
+      <ix-modal-header>Title</ix-modal-header>
+      <ix-modal-content>Content</ix-modal-content>
+    `;
+        globalThis.showModal({
+          content: elm,
+          isNonBlocking: true,
+          closeOnBackdropClick: true,
+          animation: false,
+        });
+      });
+
+      const dialog = modalPanel(page);
+      await waitForModalDialogOpen(page);
+
+      await page.mouse.click(20, 20);
+      await expect(dialog).toBeVisible();
+    }
+  );
+
+  regressionTest(
+    'non-blocking modal should allow clicking content behind the dialog',
+    async ({ mount, page }) => {
+      await mount(`<ix-button id="bg">Behind</ix-button>`);
+      await setupModalEnvironment(page);
+
+      await page.evaluate(() => {
+        document.getElementById('bg')?.addEventListener('click', () => {
+          globalThis.__nbBgClick = true;
+        });
+      });
+
+      await page.evaluate(() => {
+        const elm = document.createElement('ix-modal');
+        elm.innerHTML = `
+      <ix-modal-header>Title</ix-modal-header>
+      <ix-modal-content>Content</ix-modal-content>
+    `;
+        globalThis.showModal({
+          content: elm,
+          isNonBlocking: true,
+          animation: false,
+        });
+      });
+
+      await waitForModalDialogOpen(page);
+      await page.locator('#bg').click();
+      expect(await page.evaluate(() => globalThis.__nbBgClick)).toBe(true);
+      await expect(modalPanel(page)).toBeVisible();
+    }
+  );
+
+  regressionTest(
+    'non-blocking modal should close when header close button is pressed',
+    async ({ mount, page }) => {
+      await mount(``);
+      await setupModalEnvironment(page);
+
+      await page.evaluate(() => {
+        const elm = document.createElement('ix-modal');
+        elm.innerHTML = `
+      <ix-modal-header>Title</ix-modal-header>
+      <ix-modal-content>Content</ix-modal-content>
+    `;
+        globalThis.showModal({
+          content: elm,
+          isNonBlocking: true,
+          animation: false,
+        });
+      });
+
+      const dialog = modalPanel(page);
+      await waitForModalDialogOpen(page);
+      await page.locator('ix-icon-button').click();
+      await expect(dialog).not.toBeVisible();
+    }
+  );
+
+  regressionTest(
+    'non-blocking modal should close when dismissModal is called',
+    async ({ mount, page }) => {
+      await mount(``);
+      await setupModalEnvironment(page);
+
+      await page.evaluate(() => {
+        const elm = document.createElement('ix-modal');
+        elm.innerHTML = `
+      <ix-modal-header>Title</ix-modal-header>
+      <ix-modal-content>Content</ix-modal-content>
+    `;
+        globalThis.showModal({
+          content: elm,
+          isNonBlocking: true,
+          animation: false,
+        });
+      });
+
+      const dialog = modalPanel(page);
+      await waitForModalDialogOpen(page);
+
+      await page.evaluate(() => {
+        const modal = document.querySelector('ix-modal');
+        if (modal) {
+          globalThis.dismissModal(modal);
+        }
+      });
+
+      await expect(dialog).not.toBeVisible();
+    }
+  );
+
+  regressionTest(
+    'non-blocking modal should move initial focus inside the panel',
+    async ({ mount, page }) => {
+      await mount(``);
+      await setupModalEnvironment(page);
+
+      await page.evaluate(() => {
+        const elm = document.createElement('ix-modal');
+        elm.innerHTML = `
+      <ix-modal-header>Title</ix-modal-header>
+      <ix-modal-content>Content</ix-modal-content>
+      <ix-modal-footer>
+        <ix-button autofocus>OK</ix-button>
+      </ix-modal-footer>
+    `;
+        globalThis.showModal({
+          content: elm,
+          isNonBlocking: true,
+          animation: false,
+        });
+      });
+
+      await waitForModalDialogOpen(page);
+      await expect(page.getByRole('button', { name: 'OK' })).toBeFocused({
+        timeout: 5000,
+      });
+    }
+  );
+
+  regressionTest(
+    'non-blocking modal should allow moving focus outside the dialog',
+    async ({ mount, page }) => {
+      await mount(`<ix-button id="behind">Behind</ix-button>`);
+      await setupModalEnvironment(page);
+
+      await page.evaluate(() => {
+        const elm = document.createElement('ix-modal');
+        elm.innerHTML = `
+      <ix-modal-header>Title</ix-modal-header>
+      <ix-modal-content>Content</ix-modal-content>
+    `;
+        globalThis.showModal({
+          content: elm,
+          isNonBlocking: true,
+          animation: false,
+        });
+      });
+
+      await waitForModalDialogOpen(page);
+      await page.evaluate(() => {
+        document.getElementById('behind')?.focus();
+      });
+      await expect(page.locator('#behind')).toBeFocused();
+      await expect(modalPanel(page)).toBeVisible();
+    }
+  );
+
+  regressionTest(
+    'non-blocking modal should close on Escape when focus is inside',
+    async ({ mount, page }) => {
+      await mount(``);
+      await setupModalEnvironment(page);
+
+      await page.evaluate(() => {
+        const elm = document.createElement('ix-modal');
+        elm.innerHTML = `
+      <ix-modal-header>Title</ix-modal-header>
+      <ix-modal-content>Content</ix-modal-content>
+    `;
+        globalThis.showModal({
+          content: elm,
+          isNonBlocking: true,
+          animation: false,
+        });
+      });
+
+      await waitForModalDialogOpen(page);
+      await page.locator('ix-modal ix-icon-button.modal-close').focus();
+      await page.keyboard.press('Escape');
+      await expect(modalPanel(page)).not.toBeVisible();
+    }
+  );
+
+  regressionTest(
+    'non-blocking modal should not close on Escape when beforeDismiss returns false',
+    async ({ mount, page }) => {
+      await mount(``);
+      await setupModalEnvironment(page);
+
+      await page.evaluate(() => {
+        const elm = document.createElement('ix-modal');
+        elm.beforeDismiss = () => false;
+        elm.innerHTML = `
+      <ix-modal-header>Title</ix-modal-header>
+      <ix-modal-content>Content</ix-modal-content>
+    `;
+        globalThis.showModal({
+          content: elm,
+          isNonBlocking: true,
+          animation: false,
+        });
+      });
+
+      await waitForModalDialogOpen(page);
+      await page.locator('ix-modal ix-icon-button.modal-close').focus();
+      await page.keyboard.press('Escape');
+      await expect(modalPanel(page)).toBeVisible();
+    }
+  );
+
+  regressionTest(
+    'non-blocking modal accessibility',
+    async ({ mount, page, makeAxeBuilder }) => {
+      await mount(`<main></main>`);
+      await setupModalEnvironment(page);
+
+      await page.evaluate(() => {
+        const elm = document.createElement('ix-modal');
+        elm.isNonBlocking = true;
+        elm.setAttribute('aria-labelledby', 'nb-axe-title');
+        elm.innerHTML = `
+      <ix-modal-header id="nb-axe-title">Title</ix-modal-header>
+      <ix-modal-content>Content</ix-modal-content>
+    `;
+        globalThis.showModal({
+          content: elm,
+          animation: false,
+        });
+      });
+
+      await waitForModalDialogOpen(page);
+      const accessibilityScanResults = await makeAxeBuilder().analyze();
+      expect(accessibilityScanResults.violations).toEqual([]);
     }
   );
 });
@@ -219,7 +570,6 @@ regressionTest('emits one event on close', async ({ mount, page }) => {
   await mount(``);
 
   await setupModalEnvironment(page);
-  await page.waitForTimeout(1000);
   await page.evaluate(() => {
     const elm = document.createElement('ix-modal');
     elm.innerHTML = `
@@ -227,7 +577,7 @@ regressionTest('emits one event on close', async ({ mount, page }) => {
       <ix-modal-content>Content</ix-modal-content>
     `;
 
-    window
+    globalThis
       .showModal({
         content: elm,
         // Disable animation to get the direct animation end callback
@@ -235,29 +585,28 @@ regressionTest('emits one event on close', async ({ mount, page }) => {
       })
       .then((instance: ModalInstance<unknown>) => {
         instance.onDismiss.on(() => {
-          const counter = window.__counter;
+          const counter = globalThis.__counter;
           if (counter) {
-            window.__counter = counter + 1;
+            globalThis.__counter = counter + 1;
           } else {
-            window.__counter = 1;
+            globalThis.__counter = 1;
           }
         });
       });
   });
-  const dialog = page.locator('ix-modal dialog');
-  await expect(dialog).toBeVisible();
+  const dialog = modalPanel(page);
+  await waitForModalDialogOpen(page);
   const iconButton = page.locator('ix-icon-button');
 
   await iconButton.click();
   await expect(dialog).not.toBeVisible();
 
-  expect(await page.evaluate(() => window.__counter)).toBe(1);
+  expect(await page.evaluate(() => globalThis.__counter)).toBe(1);
 });
 
 regressionTest('button receives focus on load', async ({ mount, page }) => {
   await mount('');
   await setupModalEnvironment(page);
-  await page.waitForTimeout(100);
 
   await page.evaluate(() => {
     const elm = document.createElement('ix-modal');
@@ -267,23 +616,50 @@ regressionTest('button receives focus on load', async ({ mount, page }) => {
         <ix-button autofocus>OK</ix-button>
       </ix-modal-footer>
     `;
-    window.showModal({
+    globalThis.showModal({
       content: elm,
     });
     const okButton = elm.querySelector('ix-button');
     okButton?.addEventListener('click', () => {
-      window.dismissModal(elm);
+      globalThis.dismissModal(elm);
     });
   });
 
-  await page.waitForTimeout(250);
-  const dialog = page.locator('ix-modal dialog');
-  await expect(dialog).toBeVisible();
+  const dialog = modalPanel(page);
+  await waitForModalDialogOpen(page);
+  await expect(page.getByRole('button', { name: 'OK' })).toBeFocused({
+    timeout: 5000,
+  });
 
   await page.keyboard.press('Enter');
 
   await expect(dialog).not.toBeVisible();
 });
+
+regressionTest(
+  'modal-header autofocus delegates focus to close button',
+  async ({ mount, page }) => {
+    await mount('');
+    await setupModalEnvironment(page);
+
+    await page.evaluate(() => {
+      const elm = document.createElement('ix-modal');
+      elm.innerHTML = `
+      <ix-modal-header autofocus>Title</ix-modal-header>
+      <ix-modal-content>Content</ix-modal-content>
+    `;
+      globalThis.showModal({
+        content: elm,
+        animation: false,
+      });
+    });
+
+    await waitForModalDialogOpen(page);
+    await expect(page.getByRole('button', { name: 'Close modal' })).toBeFocused(
+      { timeout: 5000 }
+    );
+  }
+);
 
 regressionTest.describe('message utils', () => {
   [
@@ -312,20 +688,18 @@ regressionTest.describe('message utils', () => {
       await setupModalEnvironment(page);
       await page.evaluate(
         ([functionName]) => {
-          (window.showMessage as any)[functionName]('title', 'message', 'okay');
+          globalThis.showMessage[functionName]('title', 'message', 'okay');
         },
         [name]
       );
 
       const dialog = page.locator('ix-modal-header');
-      await page.waitForTimeout(500);
       await expect(dialog).toBeVisible();
 
       const icon = dialog.locator('ix-icon').first();
       await expect(icon).toBeVisible();
 
       await expect(page.getByTestId('test-icon')).toBeVisible();
-      await page.waitForTimeout(500);
 
       const expectedIconText = await page
         .getByTestId('test-icon')
@@ -345,13 +719,13 @@ regressionTest(
     await setupModalEnvironment(page);
 
     const positionTolerance = 5;
-    const dialog = page.locator('ix-modal dialog');
+    const dialog = modalPanel(page);
 
     const openCenteredModal = () =>
       page.evaluate(() => {
         const elm = document.createElement('ix-modal');
         elm.innerHTML = `<div>hi</div>`;
-        (globalThis as typeof globalThis & Window).showModal({
+        globalThis.showModal({
           content: elm,
           centered: true,
         });
@@ -361,7 +735,7 @@ regressionTest(
       page.evaluate(() => {
         const modal = document.querySelector('ix-modal');
         if (modal) {
-          (globalThis as typeof globalThis & Window).dismissModal(modal);
+          globalThis.dismissModal(modal);
         }
       });
 

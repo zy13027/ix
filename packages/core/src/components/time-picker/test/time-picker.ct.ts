@@ -6,10 +6,26 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  */
-import { expect, Page } from '@playwright/test';
+import { expect, Locator, Page } from '@playwright/test';
 import { regressionTest } from '@utils/test';
 
 const TIME_PICKER_SELECTOR = 'ix-time-picker';
+
+function timePickerCell(
+  picker: Locator,
+  unit: 'hr' | 'min' | 'sec',
+  value: number
+) {
+  return picker.getByRole('option', {
+    name: `${unit}: ${value}`,
+    exact: true,
+  });
+}
+
+function timePickerUnitList(picker: Locator, unit: 'hr' | 'min' | 'sec') {
+  return timePickerCell(picker, unit, 0).locator('..');
+}
+
 const getTimeObjs = async (page: Page) => {
   return await page.$$eval(TIME_PICKER_SELECTOR, (elements) => {
     return Promise.all(elements.map((elem) => elem.getCurrentTime()));
@@ -93,6 +109,135 @@ regressionTest('renders', async ({ mount, page }) => {
   const datePicker = page.locator(TIME_PICKER_SELECTOR);
   await expect(datePicker).toHaveClass(/hydrated/);
 });
+
+regressionTest(
+  'minTime and maxTime disable out-of-range hour buttons',
+  async ({ mount, page }) => {
+    await mount(
+      `<ix-time-picker format="HH:mm:ss" time="12:00:00" min-time="10:00:00" max-time="14:00:00"></ix-time-picker>`
+    );
+    const picker = page.locator(TIME_PICKER_SELECTOR);
+    await expect(picker).toHaveClass(/hydrated/);
+    await expect(timePickerCell(picker, 'hr', 8)).toBeDisabled();
+    await expect(timePickerCell(picker, 'hr', 12)).not.toBeDisabled();
+    await expect(timePickerCell(picker, 'hr', 15)).toBeDisabled();
+  }
+);
+
+regressionTest(
+  'minTime with minute precision keeps boundary hour selectable',
+  async ({ mount, page }) => {
+    await mount(
+      `<ix-time-picker format="HH:mm:ss" time="12:00:00" min-time="13:30:00" max-time="17:30:00"></ix-time-picker>`
+    );
+    const picker = page.locator(TIME_PICKER_SELECTOR);
+    await expect(picker).toHaveClass(/hydrated/);
+
+    await expect(timePickerCell(picker, 'hr', 12)).toBeDisabled();
+    await expect(timePickerCell(picker, 'hr', 13)).not.toBeDisabled();
+    await expect(timePickerCell(picker, 'hr', 14)).not.toBeDisabled();
+  }
+);
+
+regressionTest(
+  'minTime/maxTime: Tab skips minute column until hour is committed (out-of-range time)',
+  async ({ mount, page }) => {
+    await mount(
+      `<ix-time-picker format="HH:mm:ss" time="12:00:00" min-time="13:00:00" max-time="17:30:00"></ix-time-picker>`
+    );
+    const picker = page.locator(TIME_PICKER_SELECTOR);
+    await expect(picker).toHaveClass(/hydrated/);
+    const hour13 = timePickerCell(picker, 'hr', 13);
+    await expect(hour13).not.toBeDisabled();
+    await hour13.focus();
+    await page.keyboard.press('Tab');
+    await expect(timePickerCell(picker, 'min', 0)).not.toBeFocused();
+    await expect(timePickerUnitList(picker, 'min')).not.toBeFocused();
+  }
+);
+
+regressionTest(
+  'minTime/maxTime: Tab from hour focuses first selectable minute after hour is committed',
+  async ({ mount, page }) => {
+    await mount(
+      `<ix-time-picker format="HH:mm:ss" time="12:00:00" min-time="13:00:00" max-time="17:30:00"></ix-time-picker>`
+    );
+    const picker = page.locator(TIME_PICKER_SELECTOR);
+    await expect(picker).toHaveClass(/hydrated/);
+    const hour13 = timePickerCell(picker, 'hr', 13);
+    await expect(hour13).not.toBeDisabled();
+    await hour13.focus();
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Tab');
+    await expect(timePickerCell(picker, 'min', 0)).toBeFocused();
+  }
+);
+
+regressionTest(
+  'minTime/maxTime: Shift+Tab from seconds returns to last roving minute cell',
+  async ({ mount, page }) => {
+    await mount(
+      `<ix-time-picker format="HH:mm:ss" time="12:00:00" min-time="13:00:00" max-time="17:30:00"></ix-time-picker>`
+    );
+    const picker = page.locator(TIME_PICKER_SELECTOR);
+    await expect(picker).toHaveClass(/hydrated/);
+    await timePickerCell(picker, 'hr', 13).focus();
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Tab');
+    await expect(timePickerCell(picker, 'min', 0)).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('ArrowDown');
+    await expect(timePickerCell(picker, 'min', 2)).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(timePickerCell(picker, 'sec', 0)).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('ArrowDown');
+    await expect(timePickerCell(picker, 'sec', 2)).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await expect(timePickerCell(picker, 'min', 2)).toBeFocused();
+  }
+);
+
+regressionTest(
+  'minTime/maxTime: keyboard works when time is outside range',
+  async ({ mount, page }) => {
+    await mount(
+      `<ix-time-picker format="HH:mm:ss" time="08:00:00" min-time="10:00:00" max-time="14:00:00"></ix-time-picker>`
+    );
+    const picker = page.locator(TIME_PICKER_SELECTOR);
+    await expect(picker).toHaveClass(/hydrated/);
+    await expect(timePickerCell(picker, 'hr', 8)).toBeDisabled();
+    const hour10 = timePickerCell(picker, 'hr', 10);
+    await expect(hour10).not.toBeDisabled();
+    await hour10.focus();
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+    const t = await picker.evaluate(async (el: HTMLElement) => {
+      return await (el as HTMLIxTimePickerElement).getCurrentTime();
+    });
+    expect(t).toBe('11:00:00');
+  }
+);
+
+regressionTest(
+  'minTime/maxTime: repeated ArrowDown then Enter updates hour',
+  async ({ mount, page }) => {
+    await mount(
+      `<ix-time-picker format="HH:mm:ss" time="12:00:00" min-time="09:00:00" max-time="17:30:00"></ix-time-picker>`
+    );
+    const picker = page.locator(TIME_PICKER_SELECTOR);
+    await expect(picker).toHaveClass(/hydrated/);
+    await timePickerCell(picker, 'hr', 12).focus();
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+    const t = await picker.evaluate(async (el: HTMLElement) => {
+      return await (el as HTMLIxTimePickerElement).getCurrentTime();
+    });
+    expect(t).toBe('15:00:00');
+  }
+);
 
 regressionTest.describe('time picker tests', () => {
   regressionTest.beforeEach(async ({ mount }) => {
@@ -228,29 +373,31 @@ regressionTest.describe('time picker tests', () => {
     async ({ page }) => {
       await page.waitForSelector('ix-date-time-card');
 
-      // Focus on the hour element in the second time picker
       const secondPicker = page.locator('ix-time-picker').nth(1);
-      await secondPicker
-        .locator('[data-element-container-id="hour-10"]')
-        .focus();
+      const hour = secondPicker.locator(
+        '[data-element-container-id="hour-10"]'
+      );
+      const minute = secondPicker.locator(
+        '[data-element-container-id="minute-11"]'
+      );
+      const second = secondPicker.locator(
+        '[data-element-container-id="second-12"]'
+      );
+      const pm = secondPicker.locator('[data-am-pm-id="PM"]');
 
-      // Change hour
+      await hour.focus();
       await page.keyboard.press('ArrowDown');
       await page.keyboard.press('Enter');
 
-      // Change minutes
-      await page.keyboard.press('Tab');
+      await minute.focus();
       await page.keyboard.press('ArrowDown');
       await page.keyboard.press('Enter');
 
-      // Change seconds
-      await page.keyboard.press('Tab');
+      await second.focus();
       await page.keyboard.press('ArrowDown');
       await page.keyboard.press('Enter');
 
-      // Change time ref
-      await page.keyboard.press('Tab');
-      await page.keyboard.press('Tab');
+      await pm.focus();
       await page.keyboard.press('Enter');
 
       expect(await getTimeObjs(page)).toEqual(['09:10:11', '11:12:13 PM']);
@@ -280,7 +427,7 @@ regressionTest.describe('time picker tests', () => {
       }
       await page.keyboard.press('Tab');
 
-      const checkScrollAlignment = async (locator: any) => {
+      const checkScrollAlignment = async (locator: Locator) => {
         return await locator.evaluate((el: HTMLElement) => {
           const list = el.parentElement!;
           // Offset from time-picker.tsx elementListScrollToTop

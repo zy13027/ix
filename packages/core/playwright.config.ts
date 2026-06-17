@@ -45,6 +45,7 @@ const config: PlaywrightTestConfig = {
     trace: 'on-first-retry',
     contextOptions: {
       reducedMotion: 'reduce',
+      timezoneId: 'UTC',
     },
   },
   testMatch: path.join(__dirname, 'src', '**', '*.ct.ts'),
@@ -62,7 +63,7 @@ const config: PlaywrightTestConfig = {
     port: 8080,
     reuseExistingServer: !process.env.CI,
   },
-  retries: process.env.CI ? 3 : 1,
+  retries: 3,
 };
 
 export default config;

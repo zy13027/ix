@@ -15,6 +15,8 @@ export const routePaths: IxPreviewRoutes = {
   '': () => import('../playground/playground').then((m) => m.default),
   'preview/about-and-legal': () =>
     import('../preview-examples/about-and-legal').then((m) => m.default),
+  'preview/about-and-legal-legacy': () =>
+    import('../preview-examples/about-and-legal-legacy').then((m) => m.default),
   'preview/action-card': () =>
     import('../preview-examples/action-card').then((m) => m.default),
   'preview/add-icons': () =>
@@ -58,7 +60,9 @@ export const routePaths: IxPreviewRoutes = {
   'preview/button-subtle-tertiary': () =>
     import('../preview-examples/button-subtle-tertiary').then((m) => m.default),
   'preview/button-subtle-secondary': () =>
-    import('../preview-examples/button-subtle-secondary').then((m) => m.default),
+    import('../preview-examples/button-subtle-secondary').then(
+      (m) => m.default
+    ),
   'preview/button-group': () =>
     import('../preview-examples/button-group').then((m) => m.default),
   'preview/button-loading': () =>
@@ -107,10 +111,14 @@ export const routePaths: IxPreviewRoutes = {
     ),
   'preview/date-dropdown': () =>
     import('../preview-examples/date-dropdown').then((m) => m.default),
-  'preview/date-dropdown-user-range': () =>
-    import('../preview-examples/date-dropdown-user-range').then(
+  'preview/date-dropdown-presets': () =>
+    import('../preview-examples/date-dropdown-presets').then(
       (m) => m.default
     ),
+  'preview/date-range': () =>
+    import('../preview-examples/date-range').then((m) => m.default),
+  'preview/datetime-range': () =>
+    import('../preview-examples/datetime-range').then((m) => m.default),
   'preview/date-input': () =>
     import('../preview-examples/date-input').then((m) => m.default),
   'preview/date-input-disabled': () =>
@@ -131,10 +139,30 @@ export const routePaths: IxPreviewRoutes = {
     import('../preview-examples/datepicker-range').then((m) => m.default),
   'preview/datetimepicker': () =>
     import('../preview-examples/datetimepicker').then((m) => m.default),
-  'preview/drawer': () =>
-    import('../preview-examples/drawer').then((m) => m.default),
-  'preview/drawer-full-height': () =>
-    import('../preview-examples/drawer-full-height').then((m) => m.default),
+  'preview/datetime-input': () =>
+    import('../preview-examples/datetime-input').then((m) => m.default),
+  'preview/datetime-input-disabled': () =>
+    import('../preview-examples/datetime-input-disabled').then(
+      (m) => m.default
+    ),
+  'preview/datetime-input-label': () =>
+    import('../preview-examples/datetime-input-label').then((m) => m.default),
+  'preview/datetime-input-min-max-date': () =>
+    import('../preview-examples/datetime-input-min-max-date').then(
+      (m) => m.default
+    ),
+  'preview/datetime-input-readonly': () =>
+    import('../preview-examples/datetime-input-readonly').then(
+      (m) => m.default
+    ),
+  'preview/datetime-input-validation': () =>
+    import('../preview-examples/datetime-input-validation').then(
+      (m) => m.default
+    ),
+  'preview/datetime-input-with-slots': () =>
+    import('../preview-examples/datetime-input-with-slots').then(
+      (m) => m.default
+    ),
   'preview/dropdown': () =>
     import('../preview-examples/dropdown').then((m) => m.default),
   'preview/dropdown-button': () =>
@@ -348,6 +376,8 @@ export const routePaths: IxPreviewRoutes = {
     ),
   'preview/modal-sizes': () =>
     import('../preview-examples/modal-sizes').then((m) => m.default),
+  'preview/modal-non-blocking': () =>
+    import('../preview-examples/modal-non-blocking').then((m) => m.default),
   'preview/number-input': () =>
     import('../preview-examples/number-input').then((m) => m.default),
   'preview/number-input-disabled': () =>
@@ -394,6 +424,8 @@ export const routePaths: IxPreviewRoutes = {
     import('../preview-examples/radio-group').then((m) => m.default),
   'preview/radio-validation': () =>
     import('../preview-examples/radio-validation').then((m) => m.default),
+  'preview/range-field': () =>
+    import('../preview-examples/range-field').then((m) => m.default),
   'preview/select': () =>
     import('../preview-examples/select').then((m) => m.default),
   'preview/select-editable': () =>
@@ -406,6 +438,8 @@ export const routePaths: IxPreviewRoutes = {
     import('../preview-examples/select-validation').then((m) => m.default),
   'preview/settings': () =>
     import('../preview-examples/settings').then((m) => m.default),
+  'preview/settings-legacy': () =>
+    import('../preview-examples/settings-legacy').then((m) => m.default),
   'preview/slider': () =>
     import('../preview-examples/slider').then((m) => m.default),
   'preview/slider-error': () =>
@@ -414,6 +448,8 @@ export const routePaths: IxPreviewRoutes = {
     import('../preview-examples/slider-marker').then((m) => m.default),
   'preview/slider-trace': () =>
     import('../preview-examples/slider-trace').then((m) => m.default),
+  'preview/slider-validation': () =>
+    import('../preview-examples/slider-validation').then((m) => m.default),
   'preview/spinner': () =>
     import('../preview-examples/spinner').then((m) => m.default),
   'preview/spinner-large': () =>
@@ -424,6 +460,8 @@ export const routePaths: IxPreviewRoutes = {
     import('../preview-examples/split-button-icons').then((m) => m.default),
   'preview/tabs': () =>
     import('../preview-examples/tabs').then((m) => m.default),
+  'preview/tabs-overflow': () =>
+    import('../preview-examples/tabs-overflow').then((m) => m.default),
   'preview/tabs-rounded': () =>
     import('../preview-examples/tabs-rounded').then((m) => m.default),
   'preview/textarea': () =>
@@ -448,8 +486,14 @@ export const routePaths: IxPreviewRoutes = {
     import('../preview-examples/theme-switcher').then((m) => m.default),
   'preview/tile': () =>
     import('../preview-examples/tile').then((m) => m.default),
+  'preview/time-range': () =>
+    import('../preview-examples/time-range').then((m) => m.default),
   'preview/timepicker': () =>
     import('../preview-examples/timepicker').then((m) => m.default),
+  'preview/timepicker-min-max-time': () =>
+    import('../preview-examples/timepicker-min-max-time').then(
+      (m) => m.default
+    ),
   'preview/toast': () =>
     import('../preview-examples/toast').then((m) => m.default),
   'preview/toast-custom': () =>
@@ -537,7 +581,9 @@ export const routePaths: IxPreviewRoutes = {
   'preview/button-danger-tertiary': () =>
     import('../preview-examples/button-danger-tertiary').then((m) => m.default),
   'preview/button-danger-secondary': () =>
-    import('../preview-examples/button-danger-secondary').then((m) => m.default),
+    import('../preview-examples/button-danger-secondary').then(
+      (m) => m.default
+    ),
   'preview/date-input-min-max-date': () =>
     import('../preview-examples/date-input-min-max-date').then(
       (m) => m.default

@@ -8,14 +8,25 @@
  */
 
 import { iconClose, iconShout } from '@siemens/ix-icons/icons';
-import { Component, Event, EventEmitter, h, Host, Prop } from '@stencil/core';
+import {
+  Component,
+  Element,
+  Event,
+  EventEmitter,
+  h,
+  Host,
+  Prop,
+  Mixin,
+} from '@stencil/core';
+import { DefaultMixins } from '../utils/internal/component';
 
 @Component({
   tag: 'ix-menu-about-news',
   styleUrl: 'menu-about-news.scss',
   shadow: true,
 })
-export class MenuAboutNews {
+export class MenuAboutNews extends Mixin(...DefaultMixins) {
+  @Element() override hostElement!: HTMLIxMenuAboutNewsElement;
   /**
    * Show about news
    */
@@ -37,6 +48,13 @@ export class MenuAboutNews {
   @Prop() aboutItemLabel?: string;
 
   /**
+   * Defines which tab should be active, used when the about news is used in combination with ix-menu-about
+   *
+   * @since 5.0.0
+   */
+  @Prop() activeAboutTabKey?: string;
+
+  /**
    * Show More button is pressed
    */
   @Event() showMore!: EventEmitter<MouseEvent>;
@@ -49,7 +67,7 @@ export class MenuAboutNews {
   /** @internal */
   @Prop() expanded = false;
 
-  render() {
+  override render() {
     return (
       <Host
         class={{
@@ -87,13 +105,13 @@ export class MenuAboutNews {
         <div class="slot-container">
           <slot></slot>
         </div>
-        {this.aboutItemLabel ? (
+        {this.activeAboutTabKey ? (
           <div class="cui-popover-news-footer">
             <ix-button
               variant="primary"
-              onClick={(e) => {
+              onClick={(event) => {
                 this.show = false;
-                this.showMore.emit(e);
+                this.showMore.emit(event);
               }}
             >
               {this.i18nShowMore}

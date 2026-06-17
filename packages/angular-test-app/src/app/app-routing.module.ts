@@ -11,6 +11,7 @@ import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 
 import AboutAndLegal from '../preview-examples/about-and-legal';
+import AboutAndLegalLegacy from '../preview-examples/about-and-legal-legacy';
 import ActionCard from '../preview-examples/action-card';
 import AddIcons from '../preview-examples/add-icons';
 import AgGrid from '../preview-examples/aggrid';
@@ -56,7 +57,9 @@ import ContentHeaderWithSlot from '../preview-examples/content-header-with-slot'
 import CustomField from '../preview-examples/custom-field';
 import CustomFieldValidation from '../preview-examples/custom-field-validation';
 import DateDropdown from '../preview-examples/date-dropdown';
-import DateDropdownUserRange from '../preview-examples/date-dropdown-user-range';
+import DateDropdownPresets from '../preview-examples/date-dropdown-presets';
+import DateRange from '../preview-examples/date-range';
+import DatetimeRange from '../preview-examples/datetime-range';
 import DateInput from '../preview-examples/date-input';
 import DateInputDisabled from '../preview-examples/date-input-disabled';
 import DateInputLabel from '../preview-examples/date-input-label';
@@ -67,9 +70,14 @@ import Datepicker from '../preview-examples/datepicker';
 import DatepickerLocale from '../preview-examples/datepicker-locale';
 import DatepickerRange from '../preview-examples/datepicker-range';
 import Datetimepicker from '../preview-examples/datetimepicker';
+import DatetimeInput from '../preview-examples/datetime-input';
+import DatetimeInputDisabled from '../preview-examples/datetime-input-disabled';
+import DatetimeInputLabel from '../preview-examples/datetime-input-label';
+import DatetimeInputMinMaxDate from '../preview-examples/datetime-input-min-max-date';
+import DatetimeInputReadonly from '../preview-examples/datetime-input-readonly';
+import DatetimeInputValidation from '../preview-examples/datetime-input-validation';
+import DatetimeInputWithSlots from '../preview-examples/datetime-input-with-slots';
 import Divider from '../preview-examples/divider';
-import Drawer from '../preview-examples/drawer';
-import DrawerFullHeight from '../preview-examples/drawer-full-height';
 import Dropdown from '../preview-examples/dropdown';
 import DropdownButton from '../preview-examples/dropdown-button';
 import DropdownButtonIcon from '../preview-examples/dropdown-button-icon';
@@ -159,6 +167,7 @@ import ModalClose from '../preview-examples/modal-close';
 import ModalByInstanceContent from '../preview-examples/modal-by-instance-content';
 import ModalByTemplate from '../preview-examples/modal-by-template';
 import ModalFormIxButtonSubmit from '../preview-examples/modal-form-ix-button-submit';
+import ModalNonBlocking from '../preview-examples/modal-non-blocking';
 import ModalSizes from '../preview-examples/modal-sizes';
 import NumberInput from '../preview-examples/number-input';
 import NumberInputDisabled from '../preview-examples/number-input-disabled';
@@ -187,21 +196,25 @@ import Radiobutton from '../preview-examples/radio-button';
 import RadioDisabled from '../preview-examples/radio-disabled';
 import RadioGroup from '../preview-examples/radio-group';
 import RadioValidation from '../preview-examples/radio-validation';
+import RangeField from '../preview-examples/range-field';
 import Select from '../preview-examples/select';
 import SelectEditable from '../preview-examples/select-editable';
 import SelectMultiple from '../preview-examples/select-multiple';
 import SelectNgModel from '../preview-examples/select-ng-model';
 import SelectValidation from '../preview-examples/select-validation';
 import Settings from '../preview-examples/settings';
+import SettingsLegacy from '../preview-examples/settings-legacy';
 import Slider from '../preview-examples/slider';
 import SliderError from '../preview-examples/slider-error';
 import SliderMarker from '../preview-examples/slider-marker';
 import SliderTrace from '../preview-examples/slider-trace';
+import SliderValidation from '../preview-examples/slider-validation';
 import Spinner from '../preview-examples/spinner';
 import SpinnerLarge from '../preview-examples/spinner-large';
 import SplitButton from '../preview-examples/split-button';
 import SplitButtonIcons from '../preview-examples/split-button-icons';
 import Tabs from '../preview-examples/tabs';
+import TabsOverflow from '../preview-examples/tabs-overflow';
 import TabsRounded from '../preview-examples/tabs-rounded';
 import Textarea from '../preview-examples/textarea';
 import TextareaDisabled from '../preview-examples/textarea-disabled';
@@ -214,7 +227,9 @@ import TextareaValidation from '../preview-examples/textarea-validation';
 import ThemeService from '../preview-examples/theme-switcher';
 import Tile from '../preview-examples/tile';
 import TimeInput from '../preview-examples/time-input';
+import TimeRange from '../preview-examples/time-range';
 import Timepicker from '../preview-examples/timepicker';
+import TimepickerMinMaxTime from '../preview-examples/timepicker-min-max-time';
 import Toast from '../preview-examples/toast';
 import ToastCustom from '../preview-examples/toast-custom';
 import ToastPosition from '../preview-examples/toast-position';
@@ -248,6 +263,10 @@ const routes: Routes = [
       {
         path: 'about-and-legal',
         component: AboutAndLegal,
+      },
+      {
+        path: 'about-and-legal-legacy',
+        component: AboutAndLegalLegacy,
       },
       {
         path: 'action-card',
@@ -354,10 +373,6 @@ const routes: Routes = [
         component: ButtonSubtlePrimary,
       },
       {
-        path: 'button-group',
-        component: ButtonGroup,
-      },
-      {
         path: 'button-loading',
         component: ButtonLoading,
       },
@@ -376,10 +391,6 @@ const routes: Routes = [
       {
         path: 'button-with-link',
         component: ButtonWithLink,
-      },
-      {
-        path: 'buttons',
-        component: Buttons,
       },
       {
         path: 'button-danger-primary',
@@ -443,8 +454,16 @@ const routes: Routes = [
         component: DateDropdown,
       },
       {
-        path: 'date-dropdown-user-range',
-        component: DateDropdownUserRange,
+        path: 'date-dropdown-presets',
+        component: DateDropdownPresets,
+      },
+      {
+        path: 'date-range',
+        component: DateRange,
+      },
+      {
+        path: 'datetime-range',
+        component: DatetimeRange,
       },
       {
         path: 'date-input',
@@ -503,16 +522,36 @@ const routes: Routes = [
         component: Datetimepicker,
       },
       {
+        path: 'datetime-input',
+        component: DatetimeInput,
+      },
+      {
+        path: 'datetime-input-disabled',
+        component: DatetimeInputDisabled,
+      },
+      {
+        path: 'datetime-input-label',
+        component: DatetimeInputLabel,
+      },
+      {
+        path: 'datetime-input-min-max-date',
+        component: DatetimeInputMinMaxDate,
+      },
+      {
+        path: 'datetime-input-readonly',
+        component: DatetimeInputReadonly,
+      },
+      {
+        path: 'datetime-input-validation',
+        component: DatetimeInputValidation,
+      },
+      {
+        path: 'datetime-input-with-slots',
+        component: DatetimeInputWithSlots,
+      },
+      {
         path: 'divider',
         component: Divider,
-      },
-      {
-        path: 'drawer-full-height',
-        component: DrawerFullHeight,
-      },
-      {
-        path: 'drawer',
-        component: Drawer,
       },
       {
         path: 'dropdown-button-icon',
@@ -750,6 +789,10 @@ const routes: Routes = [
         component: ModalByInstance,
       },
       {
+        path: 'modal',
+        component: ModalByInstance,
+      },
+      {
         path: 'modal-close',
         component: ModalClose,
       },
@@ -764,6 +807,10 @@ const routes: Routes = [
       {
         path: 'modal-sizes',
         component: ModalSizes,
+      },
+      {
+        path: 'modal-non-blocking',
+        component: ModalNonBlocking,
       },
       {
         path: 'pagination-advanced',
@@ -783,17 +830,20 @@ const routes: Routes = [
       { path: 'radio-disabled', component: RadioDisabled },
       { path: 'radio-group', component: RadioGroup },
       { path: 'radio-validation', component: RadioValidation },
+      { path: 'range-field', component: RangeField },
       { path: 'select-editable', component: SelectEditable },
       { path: 'select-multiple', component: SelectMultiple },
       { path: 'select-ng-model', component: SelectNgModel },
       { path: 'select-validation', component: SelectValidation },
       { path: 'select', component: Select },
       { path: 'settings', component: Settings },
+      { path: 'settings-legacy', component: SettingsLegacy },
       { path: 'spinner', component: Spinner },
       { path: 'spinner-large', component: SpinnerLarge },
       { path: 'split-button-icons', component: SplitButtonIcons },
       { path: 'split-button', component: SplitButton },
       { path: 'tabs', component: Tabs },
+      { path: 'tabs-overflow', component: TabsOverflow },
       { path: 'tabs-rounded', component: TabsRounded },
       { path: 'textarea-legacy', component: TextareaLegacy },
       { path: 'textarea-legacy-disabled', component: TextareaLegacyDisabled },
@@ -814,7 +864,9 @@ const routes: Routes = [
       { path: 'theme-switcher', component: ThemeService },
       { path: 'tile', component: Tile },
       { path: 'time-input', component: TimeInput },
+      { path: 'time-range', component: TimeRange },
       { path: 'timepicker', component: Timepicker },
+      { path: 'timepicker-min-max-time', component: TimepickerMinMaxTime },
       { path: 'toggle-button-primary', component: ToggleButtonPrimary },
       { path: 'toggle-button-secondary', component: ToggleButtonSecondary },
       {
@@ -863,6 +915,10 @@ const routes: Routes = [
         component: SliderTrace,
       },
       {
+        path: 'slider-validation',
+        component: SliderValidation,
+      },
+      {
         path: 'slider',
         component: Slider,
       },
@@ -885,6 +941,10 @@ const routes: Routes = [
       {
         path: 'tabs-rounded',
         component: TabsRounded,
+      },
+      {
+        path: 'tabs-overflow',
+        component: TabsOverflow,
       },
       {
         path: 'tabs',
@@ -945,6 +1005,7 @@ const routes: Routes = [
       { path: 'tooltip', component: Tooltip },
       { path: 'tooltip-with-icon', component: TooltipWithIcon },
       { path: 'modal-by-instance', component: ModalByInstance },
+      { path: 'modal', component: ModalByInstance },
       { path: 'push-card', component: PushCard },
       { path: 'action-card', component: ActionCard },
       { path: 'card', component: Card },
@@ -1032,10 +1093,12 @@ const routes: Routes = [
       { path: 'slider-trace', component: SliderTrace },
       { path: 'slider-marker', component: SliderMarker },
       { path: 'slider-error', component: SliderError },
+      { path: 'slider-validation', component: SliderValidation },
       { path: 'grid', component: Grid },
       { path: 'grid-size', component: GridSize },
       { path: 'grid-padding', component: GridPadding },
       { path: 'modal-sizes', component: ModalSizes },
+      { path: 'modal-non-blocking', component: ModalNonBlocking },
       { path: 'validation-select', component: ValidationSelect },
       { path: 'input-form-validation', component: InputFormValidation },
       { path: 'form-validation', component: FormValidation },

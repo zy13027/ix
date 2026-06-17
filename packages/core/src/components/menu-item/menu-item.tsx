@@ -26,7 +26,9 @@ let sequenceId = 0;
 @Component({
   tag: 'ix-menu-item',
   styleUrl: 'menu-item.scss',
-  shadow: true,
+  shadow: {
+    delegatesFocus: true,
+  },
 })
 export class MenuItem implements IxMenuItemBase {
   /**
@@ -169,6 +171,20 @@ export class MenuItem implements IxMenuItemBase {
     }
   }
 
+  private handleCategoryKeyDown(e: KeyboardEvent) {
+    if ((e.key === 'Enter' || e.key === ' ') && this.isHostedInsideCategory) {
+      this.returnFocusToParentCategoryMenuItem();
+    }
+  }
+
+  private returnFocusToParentCategoryMenuItem() {
+    const categoryMenuItem = this.hostElement
+      .closest<HTMLElement>('ix-menu-category')
+      ?.shadowRoot?.querySelector<HTMLElement>('ix-menu-item.category-parent');
+
+    categoryMenuItem?.focus();
+  }
+
   render() {
     let extendedAttributes = {};
     if (this.home) {
@@ -187,7 +203,6 @@ export class MenuItem implements IxMenuItemBase {
 
     const commonAttributes = {
       class: 'tab',
-      tabIndex: this.disabled ? -1 : 0,
       ...hostA11y,
     };
 
@@ -218,8 +233,11 @@ export class MenuItem implements IxMenuItemBase {
           'bottom-tab': this.bottom,
           active: this.active,
           'tab-nested': this.isHostedInsideCategory,
+          'ix-focusable': !this.disabled,
         }}
         aria-disabled={this.disabled ? 'true' : null}
+        tabIndex={this.disabled ? -1 : 0}
+        role={this.isHostedInsideCategory ? 'menuitem' : undefined}
         {...extendedAttributes}
       >
         {this.href ? (
@@ -228,8 +246,8 @@ export class MenuItem implements IxMenuItemBase {
             href={this.disabled ? undefined : this.href}
             target={this.target}
             rel={this.rel}
-            role="button"
             ref={this.buttonRef}
+            onKeyDown={(e: KeyboardEvent) => this.handleCategoryKeyDown(e)}
             onClick={(e: Event) => {
               if (this.disabled) {
                 e.preventDefault();
@@ -240,7 +258,11 @@ export class MenuItem implements IxMenuItemBase {
             {menuContent}
           </a>
         ) : (
-          <button {...commonAttributes} ref={this.buttonRef}>
+          <button
+            {...commonAttributes}
+            ref={this.buttonRef}
+            onKeyDown={(e: KeyboardEvent) => this.handleCategoryKeyDown(e)}
+          >
             {menuContent}
           </button>
         )}

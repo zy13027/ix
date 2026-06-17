@@ -16,14 +16,30 @@ import {
   Prop,
   readTask,
   State,
+  Mixin,
+  Build,
 } from '@stencil/core';
 import { BaseButton } from '../button/base-button';
 import { a11yBoolean, a11yHostAttributes } from '../utils/a11y';
 import { makeRef } from '../utils/make-ref';
 import { closestElement, hasSlottedElements } from '../utils/shadow-dom';
+import {
+  FocusProxy,
+  PROXY_LISTITEM_ID_SUFFIX,
+  updateFocusProxyList,
+} from '../utils/focus/focus-proxy';
+import { DefaultMixins } from '../utils/internal/component';
+import {
+  ComponentIdMixin,
+  ComponentIdMixinContract,
+} from '../utils/internal/mixins/id.mixin';
+import {
+  AriaActiveDescendantMixin,
+  AriaActiveDescendantMixinContract,
+} from '../utils/internal/mixins/accessibility/aria-activedescendant.mixin';
 
 function DefaultAvatar(
-  props: Readonly<{ initials?: string; a11yLabel?: string }>
+  props: Readonly<{ initials?: string; ariaLabel?: string }>
 ) {
   const { initials } = props;
 
@@ -42,7 +58,7 @@ function DefaultAvatar(
       width="32"
       height="32"
       viewBox="0 0 32 32"
-      aria-label={props.a11yLabel}
+      aria-label={props.ariaLabel}
     >
       <g fill="none" fill-rule="evenodd">
         <path
@@ -66,7 +82,7 @@ function AvatarImage(
   props: Readonly<{
     image?: string;
     initials?: string;
-    a11yLabel?: string;
+    ariaLabel?: string;
   }>
 ) {
   return (
@@ -75,10 +91,10 @@ function AvatarImage(
         <img
           src={props.image}
           class="avatar-image"
-          aria-label={props.a11yLabel}
+          aria-label={props.ariaLabel}
         ></img>
       ) : (
-        <DefaultAvatar initials={props.initials} a11yLabel={props.a11yLabel} />
+        <DefaultAvatar initials={props.initials} ariaLabel={props.ariaLabel} />
       )}
     </div>
   );
@@ -90,7 +106,7 @@ function UserInfo(
     initials?: string;
     userName: string;
     extra?: string;
-    a11yLabel?: string;
+    ariaLabel?: string;
   }>
 ) {
   return (
@@ -99,7 +115,7 @@ function UserInfo(
         <AvatarImage
           image={props.image}
           initials={props.initials}
-          a11yLabel={props.a11yLabel}
+          ariaLabel={props.ariaLabel}
         />
         <div class="user">
           <div class="username">{props.userName}</div>
@@ -119,16 +135,11 @@ function UserInfo(
   styleUrl: 'avatar.scss',
   shadow: true,
 })
-export class Avatar {
-  @Element() hostElement!: HTMLIxAvatarElement;
-
-  /**
-   * Accessibility label for the image
-   * Will be set as aria-label on the nested HTML img element
-   *
-   * @deprecated Set the native `aria-label` on the ix-avatar host element. Will be removed in 5.0.0
-   */
-  @Prop({ attribute: 'a11y-label' }) a11yLabel?: string;
+export class Avatar
+  extends Mixin(...DefaultMixins, ComponentIdMixin, AriaActiveDescendantMixin)
+  implements ComponentIdMixinContract, AriaActiveDescendantMixinContract
+{
+  @Element() override hostElement!: HTMLIxAvatarElement;
 
   /**
    * Display an avatar image
@@ -169,16 +180,42 @@ export class Avatar {
   @Prop() ariaLabelTooltip?: string;
 
   @State() isClosestApplicationHeader = false;
+  @State() dropdownShow = false;
   @State() hasSlottedElements = false;
 
   private slotElement?: HTMLSlotElement;
   private dropdownElement?: HTMLIxDropdownElement;
 
-  private readonly tooltipRef = makeRef<HTMLIxTooltipElement>();
+  private observeChildrenChange?: MutationObserver;
 
-  componentWillLoad() {
+  private readonly tooltipRef = makeRef<HTMLIxTooltipElement>();
+  private a11yAttributes: Partial<ReturnType<typeof a11yHostAttributes>> = {};
+
+  get items() {
+    return Array.from(this.hostElement.querySelectorAll('ix-dropdown-item'));
+  }
+
+  override componentWillLoad() {
+    this.a11yAttributes = a11yHostAttributes(this.hostElement);
     const closest = closestElement('ix-application-header', this.hostElement);
     this.isClosestApplicationHeader = closest !== null;
+
+    this.observeChildrenChange = new MutationObserver(() => {
+      this.updateProxyList();
+    });
+    this.observeChildrenChange.observe(this.hostElement, {
+      childList: true,
+      subtree: true,
+    });
+  }
+
+  override componentDidLoad(): void {
+    this.updateProxyList();
+  }
+
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    this.observeChildrenChange?.disconnect();
   }
 
   private async slottedChanged() {
@@ -198,15 +235,56 @@ export class Avatar {
     });
   }
 
+  private resolveTooltipTrigger() {
+    // fallback to host element if component is used outside of the application header, and thus has no button element as trigger
+    return this.resolveAvatarTrigger().catch(() => this.hostElement);
+  }
+
   private onDropdownClick(event: MouseEvent) {
     if (event.target === this.dropdownElement) {
       event.preventDefault();
     }
   }
 
-  render() {
-    const a11y = a11yHostAttributes(this.hostElement);
-    const a11yLabel = a11y['aria-label'];
+  override getControllingAriaElement():
+    | Promise<HTMLElement>
+    | HTMLElement
+    | null {
+    return this.hostElement.shadowRoot!.querySelector<HTMLElement>(
+      `[aria-controls="${this.getHostElementId()}-proxy-listbox"]`
+    );
+  }
+
+  override isAriaActiveDescendantActive(): boolean {
+    return this.dropdownShow;
+  }
+
+  override getAriaActiveDescendantProxyItemId(): string | boolean {
+    return PROXY_LISTITEM_ID_SUFFIX;
+  }
+
+  private updateProxyList() {
+    const items = this.items;
+    const proxyList = this.hostElement.shadowRoot!.querySelector(
+      '.proxy-list'
+    ) as HTMLUListElement | null;
+
+    if (!proxyList) {
+      Build.isDev &&
+        console.warn('ix-avatar - focus proxy list element not found');
+      return;
+    }
+
+    updateFocusProxyList(proxyList, items, (item, proxyElement) => {
+      proxyElement.role = 'menuitem';
+      proxyElement.innerText = item.label ?? item.textContent ?? '';
+      proxyElement.ariaLabel =
+        item.ariaLabel ?? item.label ?? item.textContent ?? '';
+    });
+  }
+
+  override render() {
+    const ariaLabel = this.a11yAttributes['aria-label'];
 
     const tooltipText = this.tooltipText || this.username;
     const ariaHidden = tooltipText === this.username;
@@ -216,12 +294,12 @@ export class Avatar {
         <AvatarImage
           image={this.image}
           initials={this.initials}
-          a11yLabel={a11yLabel ?? this.a11yLabel}
+          ariaLabel={ariaLabel}
         />
         {!!tooltipText && (
           <ix-tooltip
             ref={this.tooltipRef}
-            for={this.hostElement}
+            for={this.resolveTooltipTrigger()}
             aria-hidden={a11yBoolean(ariaHidden)}
             aria-label={this.ariaLabelTooltip}
           >
@@ -243,6 +321,12 @@ export class Avatar {
             selected={false}
             type="button"
             variant="tertiary"
+            ariaAttributes={{
+              role: 'menu',
+              'aria-controls': `${this.getHostElementId()}-proxy-listbox`,
+              'aria-expanded': a11yBoolean(this.dropdownShow),
+              'aria-haspopup': 'menu',
+            }}
           >
             {Avatar}
           </BaseButton>
@@ -252,11 +336,18 @@ export class Avatar {
             class="avatar-dropdown"
             onClick={(e) => this.onDropdownClick(e)}
             onShowChanged={(event) => {
+              this.dropdownShow = event.detail;
               if (event.detail && this.tooltipRef.current) {
                 this.tooltipRef.current.hideTooltip(0);
               }
             }}
+            disableFocusTrap
+            focusHost={this.hostElement}
           >
+            <FocusProxy
+              hostId={this.getHostElementId()}
+              otherProps={{}}
+            ></FocusProxy>
             {this.username && (
               <Fragment>
                 <UserInfo
@@ -264,7 +355,7 @@ export class Avatar {
                   image={this.image}
                   initials={this.initials}
                   userName={this.username}
-                  a11yLabel={a11yLabel ?? this.a11yLabel}
+                  ariaLabel={ariaLabel}
                 />
                 {this.hasSlottedElements && (
                   <ix-divider onClick={(e) => e.preventDefault()}></ix-divider>
