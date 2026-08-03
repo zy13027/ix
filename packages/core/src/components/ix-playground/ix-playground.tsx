@@ -17,7 +17,11 @@ export class IxPlayground {
   render() {
     return (
       <Host>
-        <ix-chat-input></ix-chat-input>
+        <ix-dropdown show>
+          <ix-dropdown-item>Item 1</ix-dropdown-item>
+          <ix-dropdown-item>Item 2</ix-dropdown-item>
+          <ix-dropdown-item>Item 3</ix-dropdown-item>
+        </ix-dropdown>
       </Host>
     );
   }
