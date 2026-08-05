@@ -35,7 +35,7 @@
 
     @include hover.focus-visible {
       outline: 1px solid var(--ix-card-accordion--color-focus-bdr);
-      outline-offset: var(--ix-btn--focus--outline-offset);
+      outline-offset: var(--ix-card-accordion--focus--outline-offset);
     }
   }
 
@@ -108,31 +108,36 @@
 @each $variant in card-vars.$card-variants {
   :host(.variant-#{$variant}) {
     .expand-action {
-      background-color: var(--ix-push-card-#{$variant}-accordion--background);
+      background-color: var(
+        --ix-card-accordion-#{$variant}-accordion--background
+      );
 
       &:hover {
         background: var(
-          --ix-push-card-#{$variant}-accordion--background--hover
+          --ix-card-accordion-#{$variant}-accordion--background--hover
         );
       }
 
       &:active {
         background: var(
-          --ix-push-card-#{$variant}-accordion--background--active
+          --ix-card-accordion-#{$variant}-accordion--background--active
         );
       }
     }
 
     .expand-content {
       background-color: var(
-        --ix-push-card-#{$variant}-accordion-frame--background
+        --ix-card-accordion-#{$variant}-accordion-frame--background
       );
     }
 
     .expand-content.show {
-      border: var(--ix-push-card-#{$variant}-accordion-frame--border-width, 0px)
+      border: var(
+          --ix-card-accordion-#{$variant}-accordion-frame--border-width,
+          0px
+        )
         solid
-        var(--ix-push-card-#{$variant}-accordion-frame--border-color);
+        var(--ix-card-accordion-#{$variant}-accordion-frame--border-color);
     }
 
     .expand-content.show .expand-content-body {
@@ -141,7 +146,7 @@
 
     .expand-content-footer {
       background-color: var(
-        --ix-push-card-#{$variant}-accordion-footer--background
+        --ix-card-accordion-#{$variant}-accordion-footer--background
       );
     }
   }
