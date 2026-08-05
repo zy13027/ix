@@ -15,14 +15,6 @@ import { Component, Host, h } from '@stencil/core';
 })
 export class IxPlayground {
   render() {
-    return (
-      <Host>
-        <ix-dropdown show>
-          <ix-dropdown-item>Item 1</ix-dropdown-item>
-          <ix-dropdown-item>Item 2</ix-dropdown-item>
-          <ix-dropdown-item>Item 3</ix-dropdown-item>
-        </ix-dropdown>
-      </Host>
-    );
+    return <Host></Host>;
   }
 }
