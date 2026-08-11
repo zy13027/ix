@@ -1,5 +1,18 @@
 # @siemens/ix-angular
 
+## 5.2.0
+
+### Minor Changes
+
+- [#2645](https://github.com/siemens/ix/pull/2645) [`09fa2b6`](https://github.com/siemens/ix/commit/09fa2b60e98b7bca57355f70267d0a8cd8e2dbe8) Thanks [@alexkaduk](https://github.com/alexkaduk)! - Introduces `ix-badge` for overlay count and status indicators on anchors or as standalone badges, with semantic variants, outline mode, position/offset, optional attention animation, and standalone `tooltipText` support.
+
+### Patch Changes
+
+- [#2698](https://github.com/siemens/ix/pull/2698) [`38b9440`](https://github.com/siemens/ix/commit/38b9440c04d0995d2446fd6d843156d4f1c8c68b) Thanks [@nuke-ellington](https://github.com/nuke-ellington)! - Update ix-icons peer dependency to V3.5.0.
+
+- Updated dependencies [[`697b49f`](https://github.com/siemens/ix/commit/697b49fc3cd3db4029d346c8db71156c58a798c2), [`697b49f`](https://github.com/siemens/ix/commit/697b49fc3cd3db4029d346c8db71156c58a798c2), [`70e1c5c`](https://github.com/siemens/ix/commit/70e1c5cf686f8999a1de1ee8a91ba2bc1f9a9c86), [`70e1c5c`](https://github.com/siemens/ix/commit/70e1c5cf686f8999a1de1ee8a91ba2bc1f9a9c86), [`70e1c5c`](https://github.com/siemens/ix/commit/70e1c5cf686f8999a1de1ee8a91ba2bc1f9a9c86), [`5c43ed5`](https://github.com/siemens/ix/commit/5c43ed51616a11dcf15519e7a5b16e05ec26cbb0), [`38b9440`](https://github.com/siemens/ix/commit/38b9440c04d0995d2446fd6d843156d4f1c8c68b), [`09fa2b6`](https://github.com/siemens/ix/commit/09fa2b60e98b7bca57355f70267d0a8cd8e2dbe8), [`aea81f5`](https://github.com/siemens/ix/commit/aea81f579131e02bdf7e5cfb3f2e300321e3f965)]:
+  - @siemens/ix@5.2.0
+
 ## 5.1.1
 
 ### Patch Changes
